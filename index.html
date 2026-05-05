@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>F1</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson@3"></script>
+</head>
+
+<body>
+
+  <div class="header">
+    <img src="img/logo-f1.png" class="logo">
+    <h1>Expansão Global da Fórmula 1</h1>
+  </div>
+
+  <div class="top-controls">
+    <select id="yearSelect"></select>
+  </div>
+
+  <div class="top-row">
+    <svg id="lineChart" width="450" height="250"></svg>
+    <svg id="countriesChart" width="450" height="250"></svg>
+    <svg id="continentChart" width="450" height="250"></svg>
+  </div>
+
+  <div class="calendar-container">
+    <h3>Calendário de corridas</h3>
+    <svg id="calendarChart" width="900" height="120"></svg>
+  </div>
+
+  <svg id="map" width="900" height="500"></svg>
+
+  <div class="controls">
+    <div id="label"></div>
+    <input type="range" id="slider">
+    <button id="playBtn">▶</button>
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
