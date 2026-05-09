@@ -210,6 +210,7 @@ Promise.all([
     updateCountriesChart()
     updateContinentChart()
     updateDonutChart()
+    updateStackedAreaChart()
     updateCalendar(d.year, d.round)
   }
 
@@ -683,6 +684,7 @@ Promise.all([
       updateCountriesChart()
       updateContinentChart()
       updateDonutChart()
+      updateStackedAreaChart()
       updateCalendar(currentYear, currentRound)
       updateFilterStatus()
     })
@@ -728,6 +730,7 @@ Promise.all([
         updateCountriesChart()
         updateContinentChart()
         updateDonutChart()
+        updateStackedAreaChart()
         updateCalendar(currentYear, currentRound)
         updateFilterStatus()
       })
@@ -754,6 +757,252 @@ Promise.all([
     .attr("font-size", "15px")
     .text(`Distribuição continental da F1 em ${currentYear}`)
 }
+
+
+
+
+
+function updateStackedAreaChart() {
+
+  const svg = d3.select("#stackedAreaChart")
+  svg.selectAll("*").remove()
+
+  const margin = {
+    top: 40,
+    right: 160,
+    bottom: 50,
+    left: 70
+  }
+
+  const width = 920 - margin.left - margin.right
+  const height = 420 - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr(
+      "transform",
+      `translate(${margin.left},${margin.top})`
+    )
+
+  const data = dataGlobal.filter(
+    d => d.continent !== "Unknown"
+  )
+
+  // agrupa por ano + continente
+  const grouped = d3.rollups(
+    data,
+    v => v.length,
+    d => d.year,
+    d => d.continent
+  )
+
+  const formatted = grouped.map(([year, values]) => {
+
+    const obj = { year }
+
+    values.forEach(([continent, count]) => {
+      obj[continent] = count
+    })
+
+    return obj
+  })
+
+  const continents = [
+    "Europe",
+    "North America",
+    "South America",
+    "Asia",
+    "Oceania",
+    "Africa"
+  ]
+
+  formatted.forEach(d => {
+    continents.forEach(c => {
+      if (!d[c]) d[c] = 0
+    })
+  })
+
+  formatted.sort((a,b) => a.year - b.year)
+
+  const stack = d3.stack()
+    .keys(continents)
+    .offset(d3.stackOffsetExpand)
+
+  const stackedData = stack(formatted)
+
+  const x = d3.scaleLinear()
+    .domain(d3.extent(formatted, d => d.year))
+    .range([0, width])
+
+  const y = d3.scaleLinear()
+    .domain([0,1])
+    .range([height, 0])
+
+ const color = d3.scaleOrdinal()
+  .domain(continents)
+  .range([
+    "#c1121f",
+    "#003049",
+    "#669bbc",
+    "#588157",
+    "#dda15e",
+    "#6a4c93"
+  ])
+
+  const area = d3.area()
+    .x(d => x(d.data.year))
+    .y0(d => y(d[0]))
+    .y1(d => y(d[1]))
+    .curve(d3.curveMonotoneX)
+
+  g.selectAll(".layer")
+    .data(stackedData)
+    .enter()
+    .append("path")
+    .attr("class", "layer")
+    .attr("fill", d => color(d.key))
+    .attr("d", area)
+    .attr("opacity", d => {
+      if (
+        selectedContinent &&
+        selectedContinent !== d.key
+      ) {
+        return 0.25
+      }
+
+      return 1
+    })
+
+    .on("mouseover", (event, d) => {
+
+      const year = Math.round(
+        x.invert(d3.pointer(event)[0])
+      )
+
+      const yearData = formatted.find(
+        x => x.year === year
+      )
+
+      if (!yearData) return
+
+      const total = continents.reduce(
+        (acc, c) => acc + yearData[c],
+        0
+      )
+
+      const count = yearData[d.key]
+      const perc = (
+        (count / total) * 100
+      ).toFixed(1)
+
+      showTooltip(event, `
+        <b>${d.key}</b><br>
+        Ano: ${year}<br>
+        Corridas: ${count}<br>
+        Proporção: ${perc}%
+      `)
+    })
+
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+    .on("click", (event,d) => {
+
+      selectedContinent =
+        selectedContinent === d.key
+          ? null
+          : d.key
+
+      stopAnimation()
+
+      updateMap(currentYear, currentRound)
+      updateDistanceChart()
+      updateCountriesChart()
+      updateContinentChart()
+      updateDonutChart()
+      updateStackedAreaChart()
+      updateCalendar(currentYear, currentRound)
+      updateFilterStatus()
+    })
+
+  // eixo X
+  g.append("g")
+    .attr("class", "axis")
+    .attr(
+      "transform",
+      `translate(0,${height})`
+    )
+    .call(
+      d3.axisBottom(x)
+        .ticks(10)
+        .tickFormat(d3.format("d"))
+    )
+
+  // eixo Y
+  g.append("g")
+    .attr("class", "axis")
+    .call(
+      d3.axisLeft(y)
+        .ticks(5)
+        .tickFormat(d => `${d * 100}%`)
+    )
+
+  // título
+  svg.append("text")
+    .attr("x", 460)
+    .attr("y", 24)
+    .attr("text-anchor", "middle")
+    .attr("fill", "white")
+    .attr("font-size", "16px")
+    .attr("font-weight", "600")
+
+  // legenda
+  const legend = svg.append("g")
+    .attr("transform", "translate(760,70)")
+
+  continents.forEach((c,i) => {
+
+    const item = legend.append("g")
+      .attr(
+        "transform",
+        `translate(0, ${i * 28})`
+      )
+      .attr("class", "clickable")
+
+      .on("click", () => {
+
+        selectedContinent =
+          selectedContinent === c
+            ? null
+            : c
+
+        stopAnimation()
+
+        updateMap(currentYear, currentRound)
+        updateDistanceChart()
+        updateCountriesChart()
+        updateContinentChart()
+        updateDonutChart()
+        updateStackedAreaChart()
+        updateCalendar(currentYear, currentRound)
+        updateFilterStatus()
+      })
+
+    item.append("rect")
+      .attr("width",16)
+      .attr("height",16)
+      .attr("fill", color(c))
+
+    item.append("text")
+      .attr("x",24)
+      .attr("y",13)
+      .attr("fill","white")
+      .attr("font-size","12px")
+      .text(c)
+  })
+
+}
+
+
 
   function updateCalendar(year, round) {
     calendarSvg.selectAll("*").remove()

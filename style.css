@@ -172,7 +172,8 @@ button:hover {
 #calendarChart,
 #lineChart,
 #countriesChart,
-#continentChart {
+#continentChart,
+stackedAreaChart  {
   max-width: 100%;
   height: auto;
 }
