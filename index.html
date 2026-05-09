@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>F1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expansão Global da Fórmula 1</title>
 
   <link rel="stylesheet" href="style.css">
 
@@ -12,33 +13,130 @@
 
 <body>
 
-  <div class="header">
-    <img src="img/logo-f1.png" class="logo">
-    <h1>Expansão Global da Fórmula 1</h1>
-  </div>
+  <main class="page">
 
-  <div class="top-controls">
-    <select id="yearSelect"></select>
-  </div>
+    <header class="hero">
 
-  <div class="top-row">
-    <svg id="lineChart" width="450" height="250"></svg>
-    <svg id="countriesChart" width="450" height="250"></svg>
-    <svg id="continentChart" width="450" height="250"></svg>
-  </div>
+      <div class="header">
+        <img src="img/logo-f1.png" class="logo" alt="Logo da Fórmula 1">
 
-  <div class="calendar-container">
-    <h3>Calendário de corridas</h3>
-    <svg id="calendarChart" width="900" height="120"></svg>
-  </div>
+        <div>
+          <h1>Expansão Global da Fórmula 1</h1>
 
-  <svg id="map" width="900" height="500"></svg>
+          <p class="subtitle">
+            Uma visualização interativa da evolução geográfica, logística e temporal do calendário da Fórmula 1.
+          </p>
+        </div>
+      </div>
 
-  <div class="controls">
-    <div id="label"></div>
-    <input type="range" id="slider">
-    <button id="playBtn">▶</button>
-  </div>
+      <section class="questions">
+        <p>
+          <strong>Pergunta central:</strong>
+          como a Fórmula 1 evoluiu de um campeonato concentrado na Europa para um produto esportivo global?
+        </p>
+
+        <p>
+          <strong>Hipóteses:</strong>
+          a expansão reduziu a concentração europeia, aumentou o número de países visitados e tornou o calendário logisticamente mais complexo.
+        </p>
+      </section>
+
+    </header>
+
+    <section class="panel controls-panel">
+
+      <div class="top-controls">
+
+        <label for="yearSelect">Ano</label>
+
+        <select id="yearSelect"></select>
+
+        <button id="clearFilterBtn" class="secondary-button">
+          Limpar filtro
+        </button>
+
+      </div>
+
+      <div class="filter-status" id="filterStatus">
+        Filtro: todos os continentes
+      </div>
+
+    </section>
+
+    <section class="map-section chart-card">
+
+      <div class="map-header">
+
+        <div>
+
+          <h3>Mapa e rota da temporada</h3>
+
+          <p class="chart-hint">
+            Use o slider para avançar rodada a rodada. Com filtro de continente ativo, o mapa mostra apenas as corridas daquele continente.
+          </p>
+
+        </div>
+
+        <div id="label" class="round-label"></div>
+
+      </div>
+
+      <svg id="map" width="900" height="500"></svg>
+
+      <div class="controls">
+
+        <input type="range" id="slider">
+
+        <button id="playBtn">▶</button>
+
+      </div>
+
+    </section>
+
+
+
+
+    <!-- CALENDÁRIO -->
+    <section class="calendar-container chart-card">
+
+      <h3>Calendário de corridas</h3>
+
+      <p class="chart-hint">
+        As células destacadas indicam dias com corrida no ano selecionado.
+      </p>
+
+      <svg id="calendarChart" width="900" height="120"></svg>
+
+    </section>
+
+
+
+    <section class="top-row">
+
+      <div class="chart-card">
+        <svg id="lineChart" width="450" height="250"></svg>
+      </div>
+
+      <div class="chart-card">
+        <svg id="countriesChart" width="450" height="250"></svg>
+      </div>
+
+      <div class="chart-card">
+        <p class="chart-hint">
+          Clique em um continente para filtrar todos os gráficos.
+        </p>
+        <svg id="continentChart" width="450" height="250"></svg>
+      </div>
+
+      <div class="chart-card">
+        <svg id="donutChart" width="420" height="320"></svg>
+      </div>
+
+    </section>
+
+    
+
+  </main>
 
   <script src="script.js"></script>
 
