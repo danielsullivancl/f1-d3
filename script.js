@@ -70,14 +70,10 @@ const countryToContinent = {
   "Morocco": "Africa"
 }
 
-<<<<<<< HEAD
 // =====================================================
 // 1. FUNÇÕES AUXILIARES
 // =====================================================
 
-=======
-// Exibe o tooltip com conteúdo HTML na posição do ponteiro
->>>>>>> 40d682fba9d75da2d96ef4e6a000c9fd83bcc63e
 function showTooltip(event, html) {
   tooltip
     .style("opacity", 1)
@@ -86,19 +82,16 @@ function showTooltip(event, html) {
     .style("top", (event.pageY - 22) + "px")
 }
 
-// Atualiza a posição do tooltip enquanto o mouse se move
 function moveTooltip(event) {
   tooltip
     .style("left", (event.pageX + 12) + "px")
     .style("top", (event.pageY - 22) + "px")
 }
 
-// Oculta o tooltip
 function hideTooltip() {
   tooltip.style("opacity", 0)
 }
 
-// Calcula distância (km) entre duas coordenadas usando fórmula de Haversine
 function haversine(a, b) {
   const R = 6371
 
@@ -114,25 +107,21 @@ function haversine(a, b) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }
 
-// Formata número em km no padrão pt-BR
 function formatKm(value) {
   return `${Math.round(value).toLocaleString("pt-BR")} km`
 }
 
-// Retorna apenas itens do continente selecionado (se houver)
 function filteredByContinent(data) {
   if (!selectedContinent) return data
   return data.filter(d => d.continent === selectedContinent)
 }
 
-// Atualiza texto de status indicando o filtro de continente atual
 function updateFilterStatus() {
   filterStatus.innerText = selectedContinent
     ? `Filtro: ${selectedContinent}. Clique em outro continente ou limpe o filtro.`
     : "Filtro: todos os continentes"
 }
 
-// Para a reprodução automática (se houver) e atualiza botão de play
 function stopAnimation() {
   if (interval) clearInterval(interval)
 
