@@ -1,6 +1,8 @@
+// Elementos SVG principais: mapa e calendário
 const svg = d3.select("#map")
 const calendarSvg = d3.select("#calendarChart")
 
+// Controles da UI: slider de progresso, rótulo, botão de play, seleção de ano e botões de filtro
 const slider = document.getElementById("slider")
 const label = document.getElementById("label")
 const playBtn = document.getElementById("playBtn")
@@ -8,22 +10,25 @@ const yearSelect = document.getElementById("yearSelect")
 const clearFilterBtn = document.getElementById("clearFilterBtn")
 const filterStatus = document.getElementById("filterStatus")
 
+// Projeção geográfica e gerador de caminho para desenhar o mapa
 const projection = d3.geoNaturalEarth1()
   .scale(150)
   .translate([450, 250])
 
 const path = d3.geoPath().projection(projection)
 
+// Tooltip global reutilizável para mostrar informações ao passar o mouse
 const tooltip = d3.select("body")
   .append("div")
   .attr("class", "tooltip")
 
-let dataGlobal = []
+// Estado global da aplicação
+let dataGlobal = [] // dataset unificado (corridas + circuitos)
 let currentYear = null
 let currentRound = null
-let selectedContinent = null
+let selectedContinent = null // filtro por continente selecionado
 let playing = false
-let interval = null
+let interval = null // referência ao timer de reprodução
 
 const countryToContinent = {
   "UK": "Europe",
@@ -74,6 +79,7 @@ const countryToContinent = {
 // 1. FUNÇÕES AUXILIARES
 // =====================================================
 
+// Exibe tooltip na posição do mouse com conteúdo HTML fornecido
 function showTooltip(event, html) {
   tooltip
     .style("opacity", 1)
@@ -82,16 +88,19 @@ function showTooltip(event, html) {
     .style("top", (event.pageY - 22) + "px")
 }
 
+// Atualiza posição do tooltip (chamado em mousemove)
 function moveTooltip(event) {
   tooltip
     .style("left", (event.pageX + 12) + "px")
     .style("top", (event.pageY - 22) + "px")
 }
 
+// Esconde o tooltip
 function hideTooltip() {
   tooltip.style("opacity", 0)
 }
 
+// Calcula distância aproximada entre dois pontos (km) usando a fórmula de Haversine
 function haversine(a, b) {
   const R = 6371
 
@@ -107,21 +116,25 @@ function haversine(a, b) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }
 
+// Formata valor numérico de quilômetros para string legível (pt-BR)
 function formatKm(value) {
   return `${Math.round(value).toLocaleString("pt-BR")} km`
 }
 
+// Aplica filtro por continente quando existe `selectedContinent`
 function filteredByContinent(data) {
   if (!selectedContinent) return data
   return data.filter(d => d.continent === selectedContinent)
 }
 
+// Atualiza texto do status de filtro exibido na UI
 function updateFilterStatus() {
   filterStatus.innerText = selectedContinent
     ? `Filtro: ${selectedContinent}. Clique em outro continente ou limpe o filtro.`
     : "Filtro: todos os continentes"
 }
 
+// Para a animação de reprodução automática
 function stopAnimation() {
   if (interval) clearInterval(interval)
 
@@ -129,6 +142,7 @@ function stopAnimation() {
   playBtn.innerText = "▶"
 }
 
+// Atualiza todos os gráficos com o estado atual (ano, round, filtro)
 function refreshAllVisualizations() {
   updateFilterStatus()
   updateMap(currentYear, currentRound)
@@ -140,6 +154,7 @@ function refreshAllVisualizations() {
   updateStackedAreaChart()
 }
 
+// Seleciona o último evento (round) do `year` informado e atualiza o slider
 function selectLastRaceOfYear(year) {
   const index = dataGlobal
     .map((item, idx) => ({ item, idx }))
@@ -151,6 +166,7 @@ function selectLastRaceOfYear(year) {
   update(index)
 }
 
+// Alterna seleção de continente (clicando novamente limpa o filtro)
 function toggleContinent(continent) {
   selectedContinent = selectedContinent === continent ? null : continent
 
@@ -162,6 +178,7 @@ function toggleContinent(continent) {
 // 2. CARREGAMENTO E PREPARAÇÃO DOS DADOS
 // =====================================================
 
+// Carrega arquivos necessários (topojson do mundo, circuitos e corridas)
 Promise.all([
   d3.json("data/world.json"),
   d3.csv("data/circuits.csv"),
@@ -171,15 +188,18 @@ Promise.all([
   prepareNumericFields(circuits, races)
   drawBaseMap(world)
 
+  // Cria dataset unificado que será usado por todos os gráficos
   dataGlobal = createUnifiedDataset(circuits, races)
 
   populateYearSelect(dataGlobal)
   configureSlider(dataGlobal)
   configureEvents()
 
+  // Inicializa a visualização no primeiro índice
   update(0)
 })
 
+// Converte campos numéricos lidos como strings para números
 function prepareNumericFields(circuits, races) {
   circuits.forEach(d => {
     d.lat = +d.lat
@@ -192,6 +212,7 @@ function prepareNumericFields(circuits, races) {
   })
 }
 
+// Une informações de `races` e `circuits` em um único array ordenado
 function createUnifiedDataset(circuits, races) {
   return races
     .map(race => {
@@ -199,6 +220,7 @@ function createUnifiedDataset(circuits, races) {
       const continent = circuit ? countryToContinent[circuit.country] : null
 
       if (circuit && !continent) {
+        // Log para casos onde o país não tem mapeamento para continente
         console.log("País sem continente:", circuit.country)
       }
 
@@ -214,10 +236,11 @@ function createUnifiedDataset(circuits, races) {
         continent: continent || "Unknown"
       }
     })
-    .filter(d => d.lat && d.lng)
+    .filter(d => d.lat && d.lng) // remove entradas sem coordenadas
     .sort((a, b) => a.year - b.year || a.round - b.round)
 }
 
+// Preenche o select de anos com os anos presentes no dataset
 function populateYearSelect(data) {
   const years = [...new Set(data.map(d => d.year))]
 
@@ -229,6 +252,7 @@ function populateYearSelect(data) {
   })
 }
 
+// Configura limites do slider com base no tamanho do dataset
 function configureSlider(data) {
   slider.min = 0
   slider.max = data.length - 1
@@ -239,6 +263,7 @@ function configureSlider(data) {
 // 3. FUNÇÃO CENTRAL DE ATUALIZAÇÃO
 // =====================================================
 
+// Atualiza o estado atual e dispara refresh dos gráficos para o índice selecionado
 function update(index) {
   const selectedRace = dataGlobal[index]
 
