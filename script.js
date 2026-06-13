@@ -15,6 +15,7 @@ const decadeSelect = document.getElementById("decadeSelect")
 const toggleHegemonyTypeBtn = document.getElementById("toggleHegemonyTypeBtn")
 const toggleHegemonyMetricBtn = document.getElementById("toggleHegemonyMetricBtn")
 const pitYearSelect = document.getElementById("pitYearSelect")
+const pitPlayBtn = document.getElementById("pitPlayBtn")
 
 // Projeção geográfica e gerador de caminho para desenhar o mapa
 const projection = d3.geoNaturalEarth1()
@@ -35,6 +36,8 @@ let currentRound = null
 let selectedContinent = null // filtro por continente selecionado
 let playing = false
 let interval = null // referência ao timer de reprodução
+let pitPlaying = false
+let pitInterval = null // referência ao timer da reprodução da aba Pit Stops
 
 // Referências globais para novos dados
 let racesGlobal = []
@@ -299,6 +302,40 @@ function stopAnimation() {
 
   playing = false
   playBtn.innerText = "▶"
+}
+
+function stopPitAnimation() {
+  if (pitInterval) clearInterval(pitInterval)
+
+  pitPlaying = false
+  if (pitPlayBtn) pitPlayBtn.innerText = "▶"
+}
+
+function getPitYears() {
+  return [...pitYearSelect.options]
+    .map(option => +option.value)
+    .filter(year => !Number.isNaN(year))
+    .sort((a, b) => a - b)
+}
+
+function setSelectedPitYear(year) {
+  selectedPitYear = year
+  pitYearSelect.value = year
+  drawPitStopCorrelationChart()
+}
+
+function playNextPitYear() {
+  const pitYears = getPitYears()
+  if (pitYears.length === 0) return false
+  const currentIndex = pitYears.indexOf(selectedPitYear)
+  const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1
+
+  if (nextIndex >= pitYears.length) {
+    return false
+  }
+
+  setSelectedPitYear(pitYears[nextIndex])
+  return true
 }
 
 // Atualiza todos os gráficos com o estado atual (ano, round, filtro)
@@ -2147,8 +2184,33 @@ function configureEvents() {
   // Eventos da aba de Pit Stops (Aba 4)
   pitYearSelect.addEventListener("change", event => {
     if (pitStopsRaw.length === 0) return
-    selectedPitYear = +event.target.value
-    drawPitStopCorrelationChart()
+    stopPitAnimation()
+    setSelectedPitYear(+event.target.value)
+  })
+
+  pitPlayBtn.addEventListener("click", () => {
+    if (pitStopsRaw.length === 0) return
+
+    stopAnimation()
+
+    if (!pitPlaying) {
+      // Ensure we start at the earliest year when play begins
+      const years = getPitYears()
+      if (years.length === 0) return
+      if (!years.includes(selectedPitYear) || selectedPitYear > years[years.length - 1]) {
+        setSelectedPitYear(years[0])
+      }
+      pitPlaying = true
+      pitPlayBtn.innerText = "⏸"
+
+      pitInterval = setInterval(() => {
+        if (!playNextPitYear()) {
+          stopPitAnimation()
+        }
+      }, 900)
+    } else {
+      stopPitAnimation()
+    }
   })
 
   // Eventos de troca de Abas (Trabalha de imediato sem depender de carregamento de dados)
@@ -2163,13 +2225,17 @@ function configureEvents() {
 
       // Atualiza os gráficos específicos da aba selecionada (com verificações internas de carregamento)
       if (tabId === "global") {
+        stopPitAnimation()
         refreshAllVisualizations()
       } else if (tabId === "hegemonia") {
+        stopPitAnimation()
         updateHegemonyChart()
         updateLeaderboardTable()
       } else if (tabId === "pole") {
+        stopPitAnimation()
         updatePoleCharts()
       } else if (tabId === "pitstops") {
+        stopAnimation()
         updatePitStopCharts()
       }
     })
