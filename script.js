@@ -164,7 +164,7 @@ const worldCountryAliases = {
   "North Korea": "Asia",
   "South Korea": "Asia",
   "Timor-Leste": "Asia",
- // "French Guiana": "South America"
+  "French Guiana": "South America"
 }
 
 // Classifica países do mapa pela mesma paleta de continentes usada nos demais gráficos.
@@ -200,6 +200,38 @@ function countryFeatureContinent(feature) {
   }
 
   return "Unknown"
+}
+
+function expandCountryFeatures(features) {
+  const expanded = []
+
+  features.forEach(feature => {
+    if (feature?.properties?.name === "France" && feature?.geometry?.type === "MultiPolygon") {
+      feature.geometry.coordinates.forEach(coordinates => {
+        const part = {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates
+          },
+          properties: { ...feature.properties }
+        }
+
+        const [longitude, latitude] = d3.geoCentroid(part)
+
+        if (longitude < -20 && latitude > -10 && latitude < 25) {
+          part.properties.name = "French Guiana"
+        }
+
+        expanded.push(part)
+      })
+      return
+    }
+
+    expanded.push(feature)
+  })
+
+  return expanded
 }
 
 // =====================================================
@@ -608,11 +640,11 @@ function update(index) {
 // =====================================================
 
 function drawBaseMap(world) {
-  const countries = topojson.feature(world, world.objects.countries)
+  const countries = expandCountryFeatures(topojson.feature(world, world.objects.countries).features)
 
   svg.append("g")
     .selectAll("path")
-    .data(countries.features)
+    .data(countries)
     .enter()
     .append("path")
     .attr("d", path)
