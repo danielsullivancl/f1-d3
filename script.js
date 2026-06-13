@@ -64,6 +64,22 @@ const poleWinsByYear = new Map()             // year -> { totalPoles, wonFromPol
 let pitStopEvolution = []                    // array of { year, avg }
 let selectedPitYear = 2023                   // ano selecionado na aba de pit stops
 
+// Paleta de cores global para continentes — usada em TODOS os gráficos
+const CONTINENT_COLORS = {
+  "Europe":        "#e63946",
+  "North America": "#4361ee",
+  "South America": "#2dc653",
+  "Asia":          "#f4a261",
+  "Oceania":       "#a8dadc",
+  "Africa":        "#a855f7",
+  "Unknown":       "#475569"
+}
+
+// Retorna a cor do continente (com fallback cinza)
+function continentColor(continent) {
+  return CONTINENT_COLORS[continent] || "#475569"
+}
+
 // Configuração inicial de controle de abas
 let hegemonyType = "drivers"
 let hegemonyMetric = "championships"
@@ -586,7 +602,7 @@ function drawRacePoints(seasonData, round) {
     .attr("cx", d => projection([d.lng, d.lat])[0])
     .attr("cy", d => projection([d.lng, d.lat])[1])
     .attr("r", d => d.round === round ? 7 : 4.5)
-    .attr("fill", d => d.round === round ? "#facc15" : "#ef4444")
+    .attr("fill", d => d.round === round ? "#facc15" : continentColor(d.continent))
     .attr("stroke", "white")
     .attr("stroke-width", 1)
     .on("mouseover", (event, d) => {
@@ -924,9 +940,8 @@ function updateContinentChart() {
     .range([30, 200])
     .padding(0.25)
 
-  const color = d3.scaleSequential()
-    .domain([0, d3.max(data, d => d.count) || 1])
-    .interpolator(t => d3.interpolateReds(0.35 + 0.65 * t))
+  // Usa a paleta global de continentes (mesma cor em todos os gráficos)
+  const color = d => continentColor(d.continent)
 
   svgContinent.selectAll("rect")
     .data(data)
@@ -940,7 +955,7 @@ function updateContinentChart() {
     .attr("fill", d =>
       selectedContinent && selectedContinent !== d.continent
         ? "#475569"
-        : color(d.count)
+        : color(d)
     )
     .attr("opacity", d =>
       selectedContinent && selectedContinent !== d.continent
@@ -1015,16 +1030,8 @@ function updateDonutChart() {
   const width = 420
   const radius = 95
 
-  const color = d3.scaleOrdinal()
-    .domain(data.map(d => d.continent))
-    .range([
-      "#ef4444",
-      "#f97316",
-      "#eab308",
-      "#22c55e",
-      "#3b82f6",
-      "#a855f7"
-    ])
+  // Usa a paleta global de continentes (mesma cor em todos os gráficos)
+  const color = d => continentColor(d)
 
   const g = svgDonut.append("g")
     .attr("transform", "translate(155,170)")
@@ -1098,7 +1105,7 @@ function drawDonutLegend(svgDonut, data, color) {
     item.append("rect")
       .attr("width", 16)
       .attr("height", 16)
-      .attr("fill", color(d.continent))
+      .attr("fill", continentColor(d.continent))
 
     item.append("text")
       .attr("x", 24)
@@ -1156,16 +1163,9 @@ function updateStackedAreaChart() {
     .domain([0, 1])
     .range([height, 0])
 
-  const color = d3.scaleOrdinal()
-    .domain(continents)
-    .range([
-      "#c1121f",
-      "#003049",
-      "#669bbc",
-      "#588157",
-      "#dda15e",
-      "#6a4c93"
-    ])
+  // Usa cores globais por continente
+  const color = continentColor;
+
 
   const area = d3.area()
     .x(d => x(d.data.year))
