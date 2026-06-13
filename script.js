@@ -68,6 +68,7 @@ let selectedPitYear = 2023                   // ano selecionado na aba de pit st
 const CONTINENT_COLORS = {
   "Europe": "#e63946",
   "North America": "#4361ee",
+  "Central America": "#fb8500",
   "South America": "#2dc653",
   "Asia": "#f4a261",
   "Oceania": "#a8dadc",
@@ -106,6 +107,13 @@ const countryToContinent = {
   "United States": "North America",
   "Canada": "North America",
   "Mexico": "North America",
+  "Belize": "Central America",
+  "Guatemala": "Central America",
+  "El Salvador": "Central America",
+  "Honduras": "Central America",
+  "Nicaragua": "Central America",
+  "Costa Rica": "Central America",
+  "Panama": "Central America",
 
   "Brazil": "South America",
   "Argentina": "South America",
@@ -128,6 +136,70 @@ const countryToContinent = {
 
   "South Africa": "Africa",
   "Morocco": "Africa"
+}
+
+// Alguns nomes do world.json diferem dos usados nos CSVs.
+const worldCountryAliases = {
+  "Venezuela": "South America",
+  "Guyana": "South America",
+  "Suriname": "South America",
+  "Colombia": "South America",
+  "Cuba": "Central America",
+  "Dominican Rep.": "Central America",
+  "Haiti": "Central America",
+  "Puerto Rico": "Central America",
+  "Bahamas": "Central America",
+  "Saudi Arabia": "Asia",
+  "Oman": "Asia",
+  "Turkey": "Asia",
+  "Iran": "Asia",
+  "Iraq": "Asia",
+  "Turkmenistan": "Asia",
+  "Syria": "Asia",
+  "Yemen": "Asia",
+  "Jordan": "Asia",
+  "Indonesia": "Asia",
+  "Taiwan": "Asia",
+  "Philippines": "Asia",
+  "North Korea": "Asia",
+  "South Korea": "Asia",
+  "Timor-Leste": "Asia",
+ // "French Guiana": "South America"
+}
+
+// Classifica países do mapa pela mesma paleta de continentes usada nos demais gráficos.
+function countryFeatureContinent(feature) {
+  const countryName = feature?.properties?.name
+  const directMatch = countryToContinent[countryName] || worldCountryAliases[countryName]
+  if (directMatch) return directMatch
+
+  const [longitude, latitude] = d3.geoCentroid(feature)
+
+  if (longitude > -95 && longitude < -75 && latitude > 5 && latitude < 20) {
+    return "Central America"
+  }
+
+  if (longitude < -25) {
+    return latitude > 0 ? "North America" : "South America"
+  }
+
+  if (latitude > 35 && longitude > -25 && longitude < 60) {
+    return "Europe"
+  }
+
+  if (longitude > -20 && longitude < 55 && latitude > -35 && latitude < 37) {
+    return "Africa"
+  }
+
+  if (longitude > 110 || (latitude < 0 && longitude > 90)) {
+    return "Oceania"
+  }
+
+  if (longitude > 30 && longitude < 180 && latitude > -10) {
+    return "Asia"
+  }
+
+  return "Unknown"
 }
 
 // =====================================================
@@ -544,8 +616,15 @@ function drawBaseMap(world) {
     .enter()
     .append("path")
     .attr("d", path)
-    .attr("fill", "#1e293b")
+    .attr("class", "country")
+    .attr("fill", d => continentColor(countryFeatureContinent(d)))
     .attr("stroke", "#334155")
+    .on("mouseover", (event, d) => {
+      const countryName = d?.properties?.name || "País desconhecido"
+      showTooltip(event, `<b>${countryName}</b>`)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
 }
 
 function updateMap(year, round) {
@@ -1140,6 +1219,7 @@ function updateStackedAreaChart() {
   const continents = [
     "Europe",
     "North America",
+    "Central America",
     "South America",
     "Asia",
     "Oceania",
