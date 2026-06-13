@@ -2037,7 +2037,7 @@ function configureEvents() {
   pitYearSelect.addEventListener("change", event => {
     if (pitStopsRaw.length === 0) return
     selectedPitYear = +event.target.value
-    updatePitStopCorrelationChart()
+    drawPitStopCorrelationChart()
   })
 
   // Eventos de troca de Abas (Trabalha de imediato sem depender de carregamento de dados)
