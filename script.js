@@ -66,13 +66,13 @@ let selectedPitYear = 2023                   // ano selecionado na aba de pit st
 
 // Paleta de cores global para continentes — usada em TODOS os gráficos
 const CONTINENT_COLORS = {
-  "Europe":        "#e63946",
+  "Europe": "#e63946",
   "North America": "#4361ee",
   "South America": "#2dc653",
-  "Asia":          "#f4a261",
-  "Oceania":       "#a8dadc",
-  "Africa":        "#a855f7",
-  "Unknown":       "#475569"
+  "Asia": "#f4a261",
+  "Oceania": "#a8dadc",
+  "Africa": "#a855f7",
+  "Unknown": "#475569"
 }
 
 // Retorna a cor do continente (com fallback cinza)
@@ -669,10 +669,9 @@ function updateCalendar(year, round) {
 
       showTooltip(event, `
         ${d3.timeFormat("%d/%m/%Y")(d)}<br>
-        ${
-          race
-            ? `<b>${race.raceName}</b><br>${race.country} · Round ${race.round}`
-            : "Sem corrida"
+        ${race
+          ? `<b>${race.raceName}</b><br>${race.country} · Round ${race.round}`
+          : "Sem corrida"
         }
       `)
     })
@@ -1002,7 +1001,7 @@ function updateContinentChart() {
     .attr("text-anchor", "middle")
     .attr("fill", "white")
     .attr("font-size", "14px")
-    .text("Corridas por continente")
+    .text(`Corridas da F1 por continente em ${currentYear}`)
 }
 
 // =====================================================
@@ -1411,8 +1410,8 @@ function updateHegemonyChart() {
     }
     return { name, count }
   })
-  .sort((a, b) => b.count - a.count)
-  .slice(0, 10) // Top 10
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10) // Top 10
 
   const x = d3.scaleLinear()
     .domain([0, d3.max(data, d => d.count) || 1])
@@ -1505,8 +1504,8 @@ function updateLeaderboardTable() {
     }
     return { name, titles, wins, nationality, sortValue: count }
   })
-  .sort((a, b) => b.sortValue - a.sortValue)
-  .slice(0, 10) // Exibir o top 10 detalhado
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, 10) // Exibir o top 10 detalhado
 
   data.forEach((d, i) => {
     const tr = tbody.append("tr")
@@ -1951,7 +1950,7 @@ function drawPitStopCorrelationChart() {
 
 function configureEvents() {
   // Configurar listeners de imediato (com checagens de arrays vazios para evitar falhas)
-  
+
   slider.addEventListener("input", () => {
     if (dataGlobal.length === 0) return
     stopAnimation()
