@@ -10,6 +10,13 @@ const yearSelect = document.getElementById("yearSelect")
 const clearFilterBtn = document.getElementById("clearFilterBtn")
 const filterStatus = document.getElementById("filterStatus")
 
+// Novos controles
+const decadeSelect = document.getElementById("decadeSelect")
+const toggleHegemonyTypeBtn = document.getElementById("toggleHegemonyTypeBtn")
+const toggleHegemonyMetricBtn = document.getElementById("toggleHegemonyMetricBtn")
+const pitYearSelect = document.getElementById("pitYearSelect")
+const pitPlayBtn = document.getElementById("pitPlayBtn")
+
 // Projeção geográfica e gerador de caminho para desenhar o mapa
 const projection = d3.geoNaturalEarth1()
   .scale(150)
@@ -29,6 +36,57 @@ let currentRound = null
 let selectedContinent = null // filtro por continente selecionado
 let playing = false
 let interval = null // referência ao timer de reprodução
+let pitPlaying = false
+let pitInterval = null // referência ao timer da reprodução da aba Pit Stops
+
+// Referências globais para novos dados
+let racesGlobal = []
+let resultsRaw = []
+let driversRaw = []
+let constructorsRaw = []
+let driverStandingsRaw = []
+let constructorStandingsRaw = []
+let pitStopsRaw = []
+
+// Mapas de busca rápida pré-computados
+const driversMap = new Map()       // driverId -> { name, nationality }
+const constructorsMap = new Map()   // constructorId -> { name, nationality }
+const racesMap = new Map()          // raceId -> { name, year, round }
+const raceToYearMap = new Map()     // raceId -> year
+
+// Estruturas pré-computadas de Hegemonia
+const driverWins = new Map()                 // driverId -> count
+const constructorWins = new Map()            // constructorId -> count
+const driverChampionships = new Map()        // driverId -> count
+const constructorChampionships = new Map()   // constructorId -> count
+
+// Estruturas pré-computadas de Pole Position
+const poleWinsByYear = new Map()             // year -> { totalPoles, wonFromPole }
+
+// Estruturas de Pit Stop
+let pitStopEvolution = []                    // array of { year, avg }
+let selectedPitYear = 2023                   // ano selecionado na aba de pit stops
+
+// Paleta de cores global para continentes — usada em TODOS os gráficos
+const CONTINENT_COLORS = {
+  "Europe": "#e63946",
+  "North America": "#4361ee",
+  "Central America": "#fb8500",
+  "South America": "#2dc653",
+  "Asia": "#f4a261",
+  "Oceania": "#a8dadc",
+  "Africa": "#a855f7",
+  "Unknown": "#475569"
+}
+
+// Retorna a cor do continente (com fallback cinza)
+function continentColor(continent) {
+  return CONTINENT_COLORS[continent] || "#475569"
+}
+
+// Configuração inicial de controle de abas
+let hegemonyType = "drivers"
+let hegemonyMetric = "championships"
 
 const countryToContinent = {
   "UK": "Europe",
@@ -46,11 +104,19 @@ const countryToContinent = {
   "Sweden": "Europe",
   "Russia": "Europe",
   "Switzerland": "Europe",
+  "San Marino": "Europe",
 
   "USA": "North America",
   "United States": "North America",
   "Canada": "North America",
   "Mexico": "North America",
+  "Belize": "Central America",
+  "Guatemala": "Central America",
+  "El Salvador": "Central America",
+  "Honduras": "Central America",
+  "Nicaragua": "Central America",
+  "Costa Rica": "Central America",
+  "Panama": "Central America",
 
   "Brazil": "South America",
   "Argentina": "South America",
@@ -73,6 +139,102 @@ const countryToContinent = {
 
   "South Africa": "Africa",
   "Morocco": "Africa"
+}
+
+// Alguns nomes do world.json diferem dos usados nos CSVs.
+const worldCountryAliases = {
+  "Venezuela": "South America",
+  "Guyana": "South America",
+  "Suriname": "South America",
+  "Colombia": "South America",
+  "Cuba": "Central America",
+  "Dominican Rep.": "Central America",
+  "Haiti": "Central America",
+  "Puerto Rico": "Central America",
+  "Bahamas": "Central America",
+  "Saudi Arabia": "Asia",
+  "Oman": "Asia",
+  "Turkey": "Asia",
+  "Iran": "Asia",
+  "Iraq": "Asia",
+  "Turkmenistan": "Asia",
+  "Syria": "Asia",
+  "Yemen": "Asia",
+  "Jordan": "Asia",
+  "Indonesia": "Asia",
+  "Taiwan": "Asia",
+  "Philippines": "Asia",
+  "North Korea": "Asia",
+  "South Korea": "Asia",
+  "Timor-Leste": "Asia",
+  "French Guiana": "South America"
+}
+
+// Classifica países do mapa pela mesma paleta de continentes usada nos demais gráficos.
+function countryFeatureContinent(feature) {
+  const countryName = feature?.properties?.name
+  const directMatch = countryToContinent[countryName] || worldCountryAliases[countryName]
+  if (directMatch) return directMatch
+
+  const [longitude, latitude] = d3.geoCentroid(feature)
+
+  if (longitude > -95 && longitude < -75 && latitude > 5 && latitude < 20) {
+    return "Central America"
+  }
+
+  if (longitude < -25) {
+    return latitude > 0 ? "North America" : "South America"
+  }
+
+  if (latitude > 35 && longitude > -25 && longitude < 60) {
+    return "Europe"
+  }
+
+  if (longitude > -20 && longitude < 55 && latitude > -35 && latitude < 37) {
+    return "Africa"
+  }
+
+  if (longitude > 110 || (latitude < 0 && longitude > 90)) {
+    return "Oceania"
+  }
+
+  if (longitude > 30 && longitude < 180 && latitude > -10) {
+    return "Asia"
+  }
+
+  return "Unknown"
+}
+
+function expandCountryFeatures(features) {
+  const expanded = []
+
+  features.forEach(feature => {
+    if (feature?.properties?.name === "France" && feature?.geometry?.type === "MultiPolygon") {
+      feature.geometry.coordinates.forEach(coordinates => {
+        const part = {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates
+          },
+          properties: { ...feature.properties }
+        }
+
+        const [longitude, latitude] = d3.geoCentroid(part)
+
+        if (longitude < -20 && latitude > -10 && latitude < 25) {
+          part.properties.name = "French Guiana"
+        }
+
+        expanded.push(part)
+      })
+      return
+    }
+
+    expanded.push(feature)
+  })
+
+  return expanded
 }
 
 // =====================================================
@@ -142,6 +304,40 @@ function stopAnimation() {
   playBtn.innerText = "▶"
 }
 
+function stopPitAnimation() {
+  if (pitInterval) clearInterval(pitInterval)
+
+  pitPlaying = false
+  if (pitPlayBtn) pitPlayBtn.innerText = "▶"
+}
+
+function getPitYears() {
+  return [...pitYearSelect.options]
+    .map(option => +option.value)
+    .filter(year => !Number.isNaN(year))
+    .sort((a, b) => a - b)
+}
+
+function setSelectedPitYear(year) {
+  selectedPitYear = year
+  pitYearSelect.value = year
+  drawPitStopCorrelationChart()
+}
+
+function playNextPitYear() {
+  const pitYears = getPitYears()
+  if (pitYears.length === 0) return false
+  const currentIndex = pitYears.indexOf(selectedPitYear)
+  const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1
+
+  if (nextIndex >= pitYears.length) {
+    return false
+  }
+
+  setSelectedPitYear(pitYears[nextIndex])
+  return true
+}
+
 // Atualiza todos os gráficos com o estado atual (ano, round, filtro)
 function refreshAllVisualizations() {
   updateFilterStatus()
@@ -152,14 +348,19 @@ function refreshAllVisualizations() {
   updateContinentChart()
   updateDonutChart()
   updateStackedAreaChart()
+  updateTopCountriesChart()
 }
 
 // Seleciona o último evento (round) do `year` informado e atualiza o slider
 function selectLastRaceOfYear(year) {
-  const index = dataGlobal
+  if (dataGlobal.length === 0) return
+
+  const filtered = dataGlobal
     .map((item, idx) => ({ item, idx }))
     .filter(x => x.item.year === year)
-    .pop().idx
+
+  if (filtered.length === 0) return
+  const index = filtered.pop().idx
 
   slider.value = index
   stopAnimation()
@@ -178,25 +379,75 @@ function toggleContinent(continent) {
 // 2. CARREGAMENTO E PREPARAÇÃO DOS DADOS
 // =====================================================
 
-// Carrega arquivos necessários (topojson do mundo, circuitos e corridas)
+// Registrar os eventos imediatamente para garantir a usabilidade das abas
+configureEvents()
+
+// Carrega os 9 datasets necessários para responder a todas as perguntas
 Promise.all([
   d3.json("data/world.json"),
   d3.csv("data/circuits.csv"),
-  d3.csv("data/races.csv")
-]).then(([world, circuits, races]) => {
+  d3.csv("data/races.csv"),
+  d3.csv("data/drivers.csv"),
+  d3.csv("data/constructors.csv"),
+  d3.csv("data/results.csv"),
+  d3.csv("data/driver_standings.csv"),
+  d3.csv("data/constructor_standings.csv"),
+  d3.csv("data/pit_stops.csv")
+]).then(([world, circuits, races, drivers, constructors, results, driverStandings, constructorStandings, pitStops]) => {
+
+  // Salvar referências nos estados globais
+  racesGlobal = races
+  resultsRaw = results
+  driversRaw = drivers
+  constructorsRaw = constructors
+  driverStandingsRaw = driverStandings
+  constructorStandingsRaw = constructorStandings
+  pitStopsRaw = pitStops
+
+  // 1. Criar mapas rápidos de busca por ID
+  drivers.forEach(d => {
+    driversMap.set(+d.driverId, {
+      name: `${d.forename} ${d.surname}`,
+      nationality: d.nationality
+    })
+  })
+
+  constructors.forEach(c => {
+    constructorsMap.set(+c.constructorId, {
+      name: c.name,
+      nationality: c.nationality
+    })
+  })
+
+  races.forEach(r => {
+    racesMap.set(+r.raceId, {
+      name: r.name,
+      year: +r.year,
+      round: +r.round
+    })
+    raceToYearMap.set(+r.raceId, +r.year)
+  })
 
   prepareNumericFields(circuits, races)
   drawBaseMap(world)
 
-  // Cria dataset unificado que será usado por todos os gráficos
+  // Cria dataset unificado geográfico
   dataGlobal = createUnifiedDataset(circuits, races)
 
+  // 2. Pré-calcular dados complexos para outras abas
+  precomputeHegemonyData()
+  precomputePoleData()
+  precomputePitStopData()
+
+  // 3. Inicializar elementos e selects da interface
   populateYearSelect(dataGlobal)
+  populatePitYearSelect()
   configureSlider(dataGlobal)
-  configureEvents()
 
   // Inicializa a visualização no primeiro índice
   update(0)
+}).catch(err => {
+  console.warn("Falha ao carregar dados do F1 via fetch. Provável bloqueio de CORS no protocolo file://", err)
 })
 
 // Converte campos numéricos lidos como strings para números
@@ -219,12 +470,8 @@ function createUnifiedDataset(circuits, races) {
       const circuit = circuits.find(c => c.circuitId === race.circuitId)
       const continent = circuit ? countryToContinent[circuit.country] : null
 
-      if (circuit && !continent) {
-        // Log para casos onde o país não tem mapeamento para continente
-        console.log("País sem continente:", circuit.country)
-      }
-
       return {
+        raceId: +race.raceId,
         year: race.year,
         round: race.round,
         raceName: race.name,
@@ -242,7 +489,8 @@ function createUnifiedDataset(circuits, races) {
 
 // Preenche o select de anos com os anos presentes no dataset
 function populateYearSelect(data) {
-  const years = [...new Set(data.map(d => d.year))]
+  const years = [...new Set(data.map(d => d.year))].sort((a, b) => a - b)
+  yearSelect.innerHTML = ""
 
   years.forEach(year => {
     const option = document.createElement("option")
@@ -250,6 +498,57 @@ function populateYearSelect(data) {
     option.text = year
     yearSelect.appendChild(option)
   })
+}
+
+// Atualiza o select de anos com base na década filtrada
+function updateYearSelectForDecade(decade) {
+  if (dataGlobal.length === 0) return
+
+  const allYears = [...new Set(dataGlobal.map(d => d.year))].sort((a, b) => a - b)
+  let filteredYears = allYears
+
+  if (decade !== "all") {
+    const startYear = +decade
+    filteredYears = allYears.filter(y => y >= startYear && y < startYear + 10)
+  }
+
+  yearSelect.innerHTML = ""
+  filteredYears.forEach(year => {
+    const option = document.createElement("option")
+    option.value = year
+    option.text = year
+    yearSelect.appendChild(option)
+  })
+
+  // Se o ano atual estiver fora da lista de anos filtrados, selecionar o último
+  if (!filteredYears.includes(currentYear) && filteredYears.length > 0) {
+    const newYear = filteredYears[filteredYears.length - 1]
+    selectLastRaceOfYear(newYear)
+  } else {
+    yearSelect.value = currentYear
+  }
+}
+
+// Preenche o select de anos da aba de Pit Stops (disponível de 2011+)
+function populatePitYearSelect() {
+  if (pitStopsRaw.length === 0) return
+
+  const pitYears = [...new Set(pitStopsRaw.map(s => raceToYearMap.get(+s.raceId)))]
+    .filter(y => y !== undefined)
+    .sort((a, b) => b - a) // Mais recente primeiro
+
+  pitYearSelect.innerHTML = ""
+  pitYears.forEach(year => {
+    const option = document.createElement("option")
+    option.value = year
+    option.text = year
+    pitYearSelect.appendChild(option)
+  })
+
+  if (pitYears.length > 0) {
+    selectedPitYear = pitYears[0] // Define como ano padrão o mais recente
+    pitYearSelect.value = selectedPitYear
+  }
 }
 
 // Configura limites do slider com base no tamanho do dataset
@@ -260,11 +559,108 @@ function configureSlider(data) {
 }
 
 // =====================================================
+// 2.2 FUNÇÕES DE PRÉ-COMPUTAÇÃO DE DADOS
+// =====================================================
+
+// Processa e agrega vitórias e campeonatos mundiais
+function precomputeHegemonyData() {
+  // 1. Contabilizar vitórias individuais de pilotos e construtores
+  resultsRaw.forEach(res => {
+    if (+res.positionOrder === 1) {
+      const dId = +res.driverId
+      const cId = +res.constructorId
+      driverWins.set(dId, (driverWins.get(dId) || 0) + 1)
+      constructorWins.set(cId, (constructorWins.get(cId) || 0) + 1)
+    }
+  })
+
+  // 2. Contabilizar campeonatos mundiais
+  // Apenas a classificação na última corrida da temporada conta como o campeonato
+  const finalRaceByYear = new Map()
+  racesGlobal.forEach(r => {
+    const year = +r.year
+    const round = +r.round
+    const raceId = +r.raceId
+    if (!finalRaceByYear.has(year) || finalRaceByYear.get(year).round < round) {
+      finalRaceByYear.set(year, { raceId, round })
+    }
+  })
+
+  const finalRaceIds = new Set(Array.from(finalRaceByYear.values()).map(d => d.raceId))
+
+  // Campeonatos de pilotos
+  driverStandingsRaw.forEach(d => {
+    const raceId = +d.raceId
+    if (finalRaceIds.has(raceId) && +d.position === 1) {
+      const driverId = +d.driverId
+      driverChampionships.set(driverId, (driverChampionships.get(driverId) || 0) + 1)
+    }
+  })
+
+  // Campeonatos de equipes
+  constructorStandingsRaw.forEach(c => {
+    const raceId = +c.raceId
+    if (finalRaceIds.has(raceId) && +c.position === 1) {
+      const constructorId = +c.constructorId
+      constructorChampionships.set(constructorId, (constructorChampionships.get(constructorId) || 0) + 1)
+    }
+  })
+}
+
+// Processa taxa de vitórias a partir da Pole Position
+function precomputePoleData() {
+  resultsRaw.forEach(res => {
+    const raceId = +res.raceId
+    const year = raceToYearMap.get(raceId)
+    if (!year) return
+
+    // Verifica se largou em 1º (grid === 1)
+    if (+res.grid === 1) {
+      if (!poleWinsByYear.has(year)) {
+        poleWinsByYear.set(year, { totalPoles: 0, wonFromPole: 0 })
+      }
+      const stats = poleWinsByYear.get(year)
+      stats.totalPoles += 1
+      if (+res.positionOrder === 1) {
+        stats.wonFromPole += 1
+      }
+    }
+  })
+}
+
+// Processa tempos médios de pit stops
+function precomputePitStopData() {
+  const pitStopsByYear = new Map()
+  pitStopsRaw.forEach(stop => {
+    const raceId = +stop.raceId
+    const year = raceToYearMap.get(raceId)
+    if (!year) return
+
+    const ms = +stop.milliseconds
+    const sec = ms / 1000
+    // Filtro contra anomalias/danos extremos (>45s) e ruídos incorretos (<12s)
+    if (sec >= 12 && sec <= 45) {
+      if (!pitStopsByYear.has(year)) {
+        pitStopsByYear.set(year, [])
+      }
+      pitStopsByYear.get(year).push(sec)
+    }
+  })
+
+  pitStopEvolution = Array.from(pitStopsByYear.entries()).map(([year, times]) => {
+    const avg = d3.mean(times)
+    return { year, avg }
+  }).sort((a, b) => a.year - b.year)
+}
+
+// =====================================================
 // 3. FUNÇÃO CENTRAL DE ATUALIZAÇÃO
 // =====================================================
 
 // Atualiza o estado atual e dispara refresh dos gráficos para o índice selecionado
 function update(index) {
+  if (dataGlobal.length === 0) return
+
   const selectedRace = dataGlobal[index]
 
   currentYear = selectedRace.year
@@ -277,23 +673,32 @@ function update(index) {
 }
 
 // =====================================================
-// 4. MAPA
+// 4. MAPA (ABA 1)
 // =====================================================
 
 function drawBaseMap(world) {
-  const countries = topojson.feature(world, world.objects.countries)
+  const countries = expandCountryFeatures(topojson.feature(world, world.objects.countries).features)
 
   svg.append("g")
     .selectAll("path")
-    .data(countries.features)
+    .data(countries)
     .enter()
     .append("path")
     .attr("d", path)
-    .attr("fill", "#1e293b")
+    .attr("class", "country")
+    .attr("fill", d => continentColor(countryFeatureContinent(d)))
     .attr("stroke", "#334155")
+    .on("mouseover", (event, d) => {
+      const countryName = d?.properties?.name || "País desconhecido"
+      showTooltip(event, `<b>${countryName}</b>`)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
 }
 
 function updateMap(year, round) {
+  if (dataGlobal.length === 0) return
+
   const seasonUntilCurrentRound = dataGlobal.filter(d =>
     d.year === year && d.round <= round
   )
@@ -314,6 +719,8 @@ function drawSeasonRoutes(seasonData) {
 
     const p1 = projection([previousRace.lng, previousRace.lat])
     const p2 = projection([currentRace.lng, currentRace.lat])
+
+    if (!p1 || !p2) continue
 
     const midX = (p1[0] + p2[0]) / 2
     const midY = (p1[1] + p2[1]) / 2 - 60
@@ -343,7 +750,7 @@ function drawRacePoints(seasonData, round) {
     .attr("cx", d => projection([d.lng, d.lat])[0])
     .attr("cy", d => projection([d.lng, d.lat])[1])
     .attr("r", d => d.round === round ? 7 : 4.5)
-    .attr("fill", d => d.round === round ? "#facc15" : "#ef4444")
+    .attr("fill", d => d.round === round ? "#facc15" : continentColor(d.continent))
     .attr("stroke", "white")
     .attr("stroke-width", 1)
     .on("mouseover", (event, d) => {
@@ -361,11 +768,12 @@ function drawRacePoints(seasonData, round) {
 }
 
 // =====================================================
-// 5. CALENDÁRIO
+// 5. CALENDÁRIO (ABA 1)
 // =====================================================
 
 function updateCalendar(year, round) {
   calendarSvg.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
 
   const racesUntilRound = filteredByContinent(dataGlobal).filter(d =>
     d.year === year && d.round <= round
@@ -409,10 +817,9 @@ function updateCalendar(year, round) {
 
       showTooltip(event, `
         ${d3.timeFormat("%d/%m/%Y")(d)}<br>
-        ${
-          race
-            ? `<b>${race.raceName}</b><br>${race.country} · Round ${race.round}`
-            : "Sem corrida"
+        ${race
+          ? `<b>${race.raceName}</b><br>${race.country} · Round ${race.round}`
+          : "Sem corrida"
         }
       `)
     })
@@ -453,12 +860,13 @@ function drawCalendarWeekdays(g, cellSize) {
 }
 
 // =====================================================
-// 6. GRÁFICO DE DISTÂNCIA TOTAL POR TEMPORADA
+// 6. DISTÂNCIA TOTAL POR TEMPORADA (ABA 1)
 // =====================================================
 
 function updateDistanceChart() {
   const svgLine = d3.select("#lineChart")
   svgLine.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
 
   const chartData = filteredByContinent(dataGlobal)
   const grouped = d3.group(chartData, d => d.year)
@@ -545,12 +953,13 @@ function updateDistanceChart() {
 }
 
 // =====================================================
-// 7. GRÁFICO DE PAÍSES POR TEMPORADA
+// 7. GRÁFICO DE PAÍSES POR TEMPORADA (ABA 1)
 // =====================================================
 
 function updateCountriesChart() {
   const svgCountries = d3.select("#countriesChart")
   svgCountries.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
 
   const chartData = filteredByContinent(dataGlobal)
 
@@ -649,12 +1058,13 @@ function addClickableYearPoints(svgElement, data, x, y, valueKey, tooltipContent
 }
 
 // =====================================================
-// 8. GRÁFICO DE BARRAS POR CONTINENTE
+// 8. BARRAS POR CONTINENTE (ABA 1)
 // =====================================================
 
 function updateContinentChart() {
   const svgContinent = d3.select("#continentChart")
   svgContinent.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
 
   const dataCurrentYear = dataGlobal.filter(d => d.year === currentYear)
 
@@ -677,9 +1087,8 @@ function updateContinentChart() {
     .range([30, 200])
     .padding(0.25)
 
-  const color = d3.scaleSequential()
-    .domain([0, d3.max(data, d => d.count) || 1])
-    .interpolator(t => d3.interpolateReds(0.35 + 0.65 * t))
+  // Usa a paleta global de continentes (mesma cor em todos os gráficos)
+  const color = d => continentColor(d.continent)
 
   svgContinent.selectAll("rect")
     .data(data)
@@ -693,7 +1102,7 @@ function updateContinentChart() {
     .attr("fill", d =>
       selectedContinent && selectedContinent !== d.continent
         ? "#475569"
-        : color(d.count)
+        : color(d)
     )
     .attr("opacity", d =>
       selectedContinent && selectedContinent !== d.continent
@@ -740,16 +1149,17 @@ function updateContinentChart() {
     .attr("text-anchor", "middle")
     .attr("fill", "white")
     .attr("font-size", "14px")
-    .text("Corridas por continente")
+    .text(`Corridas da F1 por continente em ${currentYear}`)
 }
 
 // =====================================================
-// 9. DONUT CHART
+// 9. DONUT CHART (ABA 1)
 // =====================================================
 
 function updateDonutChart() {
   const svgDonut = d3.select("#donutChart")
   svgDonut.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
 
   const dataCurrentYear = dataGlobal.filter(d => d.year === currentYear)
 
@@ -767,16 +1177,8 @@ function updateDonutChart() {
   const width = 420
   const radius = 95
 
-  const color = d3.scaleOrdinal()
-    .domain(data.map(d => d.continent))
-    .range([
-      "#ef4444",
-      "#f97316",
-      "#eab308",
-      "#22c55e",
-      "#3b82f6",
-      "#a855f7"
-    ])
+  // Usa a paleta global de continentes (mesma cor em todos os gráficos)
+  const color = d => continentColor(d)
 
   const g = svgDonut.append("g")
     .attr("transform", "translate(155,170)")
@@ -798,14 +1200,12 @@ function updateDonutChart() {
       if (selectedContinent && selectedContinent !== d.data.continent) {
         return "#475569"
       }
-
       return color(d.data.continent)
     })
     .attr("opacity", d => {
       if (selectedContinent && selectedContinent !== d.data.continent) {
         return 0.4
       }
-
       return 1
     })
     .attr("stroke", "#020617")
@@ -852,7 +1252,7 @@ function drawDonutLegend(svgDonut, data, color) {
     item.append("rect")
       .attr("width", 16)
       .attr("height", 16)
-      .attr("fill", color(d.continent))
+      .attr("fill", continentColor(d.continent))
 
     item.append("text")
       .attr("x", 24)
@@ -864,12 +1264,13 @@ function drawDonutLegend(svgDonut, data, color) {
 }
 
 // =====================================================
-// 10. ÁREA EMPILHADA
+// 10. ÁREA EMPILHADA (ABA 1)
 // =====================================================
 
 function updateStackedAreaChart() {
   const svgArea = d3.select("#stackedAreaChart")
   svgArea.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
 
   const margin = {
     top: 40,
@@ -887,6 +1288,7 @@ function updateStackedAreaChart() {
   const continents = [
     "Europe",
     "North America",
+    "Central America",
     "South America",
     "Asia",
     "Oceania",
@@ -909,16 +1311,9 @@ function updateStackedAreaChart() {
     .domain([0, 1])
     .range([height, 0])
 
-  const color = d3.scaleOrdinal()
-    .domain(continents)
-    .range([
-      "#c1121f",
-      "#003049",
-      "#669bbc",
-      "#588157",
-      "#dda15e",
-      "#6a4c93"
-    ])
+  // Usa cores globais por continente
+  const color = continentColor;
+
 
   const area = d3.area()
     .x(d => x(d.data.year))
@@ -937,7 +1332,6 @@ function updateStackedAreaChart() {
       if (selectedContinent && selectedContinent !== d.key) {
         return 0.25
       }
-
       return 1
     })
     .on("mouseover", (event, d) => {
@@ -1043,27 +1437,698 @@ function drawStackedAreaLegend(svgArea, continents, color) {
 }
 
 // =====================================================
-// 11. EVENTOS DOS CONTROLES
+// 10.2 PAÍSES RECORDISTAS EM SEDIAR GPS (NOVO - ABA 1)
+// =====================================================
+
+function updateTopCountriesChart() {
+  const svg = d3.select("#topCountriesChart")
+  svg.selectAll("*").remove()
+  if (dataGlobal.length === 0) return
+
+  const width = +svg.attr("width")
+  const height = +svg.attr("height")
+  const margin = { top: 20, right: 40, bottom: 40, left: 140 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`)
+
+  // Agrupar corridas totais na história por país
+  const counts = d3.rollup(
+    dataGlobal,
+    v => v.length,
+    d => d.country
+  )
+
+  const data = Array.from(counts, ([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15) // Exibir os top 15 países
+
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.count) || 1])
+    .nice()
+    .range([0, chartWidth])
+
+  const y = d3.scaleBand()
+    .domain(data.map(d => d.country))
+    .range([0, chartHeight])
+    .padding(0.25)
+
+  const color = d3.scaleSequential()
+    .domain([0, d3.max(data, d => d.count) || 1])
+    .interpolator(t => d3.interpolateReds(0.35 + 0.65 * t))
+
+  g.selectAll("rect")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", "clickable")
+    .attr("x", 0)
+    .attr("y", d => y(d.country))
+    .attr("width", d => x(d.count))
+    .attr("height", y.bandwidth())
+    .attr("fill", d => color(d.count))
+    .attr("rx", 3)
+    .on("mouseover", (event, d) => {
+      showTooltip(event, `
+        <b>${d.country}</b><br>
+        Sediou ${d.count} GPs no total da história.
+      `)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+  g.selectAll(".value")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "value")
+    .attr("x", d => x(d.count) + 6)
+    .attr("y", d => y(d.country) + y.bandwidth() / 2 + 4)
+    .attr("fill", "white")
+    .attr("font-size", "11px")
+    .text(d => d.count)
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y))
+
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).ticks(6))
+}
+
+// =====================================================
+// 11. HEGEMONIA HISTÓRICA - GRAFICOS (ABA 2)
+// =====================================================
+
+function updateHegemonyChart() {
+  const svg = d3.select("#hegemonyChart")
+  svg.selectAll("*").remove()
+  if (resultsRaw.length === 0) return
+
+  const width = +svg.attr("width")
+  const height = +svg.attr("height")
+  const margin = { top: 30, right: 60, bottom: 40, left: 220 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`)
+
+  let dataMap
+  let labelText = ""
+
+  if (hegemonyType === "drivers") {
+    dataMap = hegemonyMetric === "championships" ? driverChampionships : driverWins
+    labelText = hegemonyMetric === "championships" ? "Títulos Mundiais" : "Vitórias em GPs"
+  } else {
+    dataMap = hegemonyMetric === "championships" ? constructorChampionships : constructorWins
+    labelText = hegemonyMetric === "championships" ? "Títulos de Construtores" : "Vitórias em GPs"
+  }
+
+  // Prepara e ordena o ranking
+  const data = Array.from(dataMap.entries()).map(([id, count]) => {
+    let name = ""
+    if (hegemonyType === "drivers") {
+      name = driversMap.get(id)?.name || `Piloto ${id}`
+    } else {
+      name = constructorsMap.get(id)?.name || `Equipe ${id}`
+    }
+    return { name, count }
+  })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10) // Top 10
+
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.count) || 1])
+    .nice()
+    .range([0, chartWidth])
+
+  const y = d3.scaleBand()
+    .domain(data.map(d => d.name))
+    .range([0, chartHeight])
+    .padding(0.25)
+
+  const color = d3.scaleSequential()
+    .domain([0, d3.max(data, d => d.count) || 1])
+    .interpolator(t => d3.interpolateReds(0.35 + 0.65 * t))
+
+  g.selectAll("rect")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", "clickable")
+    .attr("x", 0)
+    .attr("y", d => y(d.name))
+    .attr("width", d => x(d.count))
+    .attr("height", y.bandwidth())
+    .attr("fill", d => color(d.count))
+    .attr("rx", 4)
+    .on("mouseover", (event, d) => {
+      showTooltip(event, `
+        <b>${d.name}</b><br>
+        ${d.count} ${labelText}
+      `)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+  g.selectAll(".value")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "value")
+    .attr("x", d => x(d.count) + 8)
+    .attr("y", d => y(d.name) + y.bandwidth() / 2 + 4)
+    .attr("fill", "white")
+    .attr("font-size", "11px")
+    .text(d => d.count)
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y))
+
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")))
+
+  const displayType = hegemonyType === "drivers" ? "Pilotos" : "Construtores"
+  document.getElementById("hegemonyChartTitle").innerText = `Maiores Recordistas (${displayType}) por ${labelText}`
+}
+
+function updateLeaderboardTable() {
+  const tbody = d3.select("#leaderboardTable tbody")
+  tbody.selectAll("*").remove()
+  if (resultsRaw.length === 0) return
+
+  let dataMap
+  if (hegemonyType === "drivers") {
+    dataMap = hegemonyMetric === "championships" ? driverChampionships : driverWins
+  } else {
+    dataMap = hegemonyMetric === "championships" ? constructorChampionships : constructorWins
+  }
+
+  const data = Array.from(dataMap.entries()).map(([id, count]) => {
+    let name = ""
+    let nationality = ""
+    let titles = 0
+    let wins = 0
+
+    if (hegemonyType === "drivers") {
+      const driver = driversMap.get(id)
+      name = driver?.name || `Piloto ${id}`
+      nationality = driver?.nationality || "-"
+      titles = driverChampionships.get(id) || 0
+      wins = driverWins.get(id) || 0
+    } else {
+      const constructor = constructorsMap.get(id)
+      name = constructor?.name || `Equipe ${id}`
+      nationality = constructor?.nationality || "-"
+      titles = constructorChampionships.get(id) || 0
+      wins = constructorWins.get(id) || 0
+    }
+    return { name, titles, wins, nationality, sortValue: count }
+  })
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, 10) // Exibir o top 10 detalhado
+
+  data.forEach((d, i) => {
+    const tr = tbody.append("tr")
+    tr.append("td").text(`${i + 1}º`)
+    tr.append("td").text(d.name)
+    tr.append("td").text(d.titles > 0 ? `${d.titles} título(s)` : "Nenhum título")
+    tr.append("td").text(`${d.wins} vitória(s)`)
+    tr.append("td").text(d.nationality)
+  })
+}
+
+// =====================================================
+// 12. POLE POSITION VS VITÓRIA - GRAFICOS (ABA 3)
+// =====================================================
+
+function updatePoleCharts() {
+  if (resultsRaw.length === 0) return
+  drawPoleConversionChart()
+  drawGridCorrelationChart()
+}
+
+function drawPoleConversionChart() {
+  const svg = d3.select("#poleConversionChart")
+  svg.selectAll("*").remove()
+
+  const width = +svg.attr("width")
+  const height = +svg.attr("height")
+  const margin = { top: 35, right: 40, bottom: 40, left: 60 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`)
+
+  // Converte o mapa de taxas de pole em array de objetos ordenados
+  const data = Array.from(poleWinsByYear.entries()).map(([year, stats]) => {
+    const rate = stats.totalPoles > 0 ? (stats.wonFromPole / stats.totalPoles) * 100 : 0
+    return { year, rate, ...stats }
+  }).sort((a, b) => a.year - b.year)
+
+  const x = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.year))
+    .range([0, chartWidth])
+
+  const y = d3.scaleLinear()
+    .domain([0, 100])
+    .nice()
+    .range([chartHeight, 0])
+
+  // Linha tracejada de referência em 50%
+  g.append("line")
+    .attr("x1", 0)
+    .attr("y1", y(50))
+    .attr("x2", chartWidth)
+    .attr("y2", y(50))
+    .attr("stroke", "#475569")
+    .attr("stroke-dasharray", "4,4")
+    .attr("stroke-width", 1)
+
+  g.append("text")
+    .attr("x", chartWidth - 10)
+    .attr("y", y(50) - 6)
+    .attr("text-anchor", "end")
+    .attr("fill", "#94a3b8")
+    .attr("font-size", "10px")
+    .text("Linha de 50% de conversão")
+
+  // Desenhar linha principal da taxa
+  g.append("path")
+    .datum(data)
+    .attr("fill", "none")
+    .attr("stroke", "#ef4444")
+    .attr("stroke-width", 2.5)
+    .attr("d", d3.line()
+      .x(d => x(d.year))
+      .y(d => y(d.rate))
+    )
+
+  // Círculos interativos
+  g.selectAll(".pole-point")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("class", "pole-point clickable")
+    .attr("cx", d => x(d.year))
+    .attr("cy", d => y(d.rate))
+    .attr("r", 4)
+    .attr("fill", "#ef4444")
+    .attr("stroke", "#020617")
+    .attr("stroke-width", 1)
+    .on("mouseover", (event, d) => {
+      showTooltip(event, `
+        <b>Temporada: ${d.year}</b><br>
+        Corridas com grid registrado: ${d.totalPoles}<br>
+        Vitórias saindo da Pole: ${d.wonFromPole}<br>
+        <b>Taxa de Conversão: ${d.rate.toFixed(1)}%</b>
+      `)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).ticks(10).tickFormat(d3.format("d")))
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y).tickFormat(d => `${d}%`))
+}
+
+function drawGridCorrelationChart() {
+  const svg = d3.select("#gridCorrelationChart")
+  svg.selectAll("*").remove()
+
+  const width = +svg.attr("width")
+  const height = +svg.attr("height")
+  const margin = { top: 30, right: 40, bottom: 50, left: 60 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`)
+
+  // Processar correlações das posições de largada vs chegada
+  const counts = new Map()
+  let maxCount = 0
+
+  resultsRaw.forEach(res => {
+    const grid = +res.grid
+    const pos = +res.positionOrder
+    if (grid >= 1 && grid <= 20 && pos >= 1 && pos <= 20) {
+      const key = `${grid}-${pos}`
+      const c = (counts.get(key) || 0) + 1
+      counts.set(key, c)
+      if (c > maxCount) maxCount = c
+    }
+  })
+
+  const data = Array.from(counts.entries()).map(([key, count]) => {
+    const [grid, pos] = key.split("-").map(Number)
+    return { grid, pos, count }
+  })
+
+  const x = d3.scaleLinear()
+    .domain([1, 20])
+    .range([0, chartWidth])
+
+  const y = d3.scaleLinear()
+    .domain([1, 20])
+    .range([0, chartHeight]) // 1 na parte superior, 20 na parte inferior
+
+  const radius = d3.scaleSqrt()
+    .domain([1, maxCount])
+    .range([2.5, 18])
+
+  const color = d3.scaleSequential()
+    .domain([1, maxCount])
+    .interpolator(d3.interpolateYlOrRd)
+
+  // Linha diagonal de referência (Largada = Chegada)
+  g.append("line")
+    .attr("x1", x(1))
+    .attr("y1", y(1))
+    .attr("x2", x(20))
+    .attr("y2", y(20))
+    .attr("stroke", "#475569")
+    .attr("stroke-dasharray", "3,3")
+    .attr("stroke-width", 1.5)
+
+  g.append("text")
+    .attr("x", x(15))
+    .attr("y", y(15) - 8)
+    .attr("transform", `rotate(${Math.atan2(chartHeight, chartWidth) * 180 / Math.PI}, ${x(15)}, ${y(15)})`)
+    .attr("fill", "#94a3b8")
+    .attr("font-size", "10px")
+    .text("Largada = Chegada")
+
+  // Indicadores de posições ganhas/perdidas
+  g.append("text")
+    .attr("x", x(4))
+    .attr("y", y(16))
+    .attr("fill", "#ef4444")
+    .attr("font-size", "12px")
+    .attr("opacity", 0.7)
+    .text("Perdeu posições ⬇")
+
+  g.append("text")
+    .attr("x", x(14))
+    .attr("y", y(4))
+    .attr("fill", "#10b981")
+    .attr("font-size", "12px")
+    .attr("opacity", 0.7)
+    .text("Recuperou posições ⬆")
+
+  // Renderizar as bolhas (círculos)
+  g.selectAll(".correlation-bubble")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("class", "correlation-bubble")
+    .attr("cx", d => x(d.grid))
+    .attr("cy", d => y(d.pos))
+    .attr("r", d => radius(d.count))
+    .attr("fill", d => color(d.count))
+    .attr("stroke", "white")
+    .attr("stroke-width", 0.5)
+    .attr("fill-opacity", 0.8)
+    .on("mouseover", (event, d) => {
+      showTooltip(event, `
+        <b>Largada: ${d.grid}º colocado</b><br>
+        <b>Chegada: ${d.pos}º colocado</b><br>
+        Frequência Histórica: ${d.count} ocorrências
+      `)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).ticks(20).tickFormat(d => `${d}º`))
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(20).tickFormat(d => `${d}º`))
+}
+
+// =====================================================
+// 13. PIT STOPS - GRAFICOS (ABA 4)
+// =====================================================
+
+function updatePitStopCharts() {
+  if (pitStopsRaw.length === 0) return
+  drawPitStopEvolutionChart()
+  drawPitStopCorrelationChart()
+}
+
+function drawPitStopEvolutionChart() {
+  const svg = d3.select("#pitStopEvolutionChart")
+  svg.selectAll("*").remove()
+
+  const width = +svg.attr("width")
+  const height = +svg.attr("height")
+  const margin = { top: 35, right: 40, bottom: 40, left: 60 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`)
+
+  const x = d3.scaleLinear()
+    .domain(d3.extent(pitStopEvolution, d => d.year))
+    .range([0, chartWidth])
+
+  const y = d3.scaleLinear()
+    .domain([d3.min(pitStopEvolution, d => d.avg) - 1, d3.max(pitStopEvolution, d => d.avg) + 1])
+    .nice()
+    .range([chartHeight, 0])
+
+  // Desenhar linha de evolução
+  g.append("path")
+    .datum(pitStopEvolution)
+    .attr("fill", "none")
+    .attr("stroke", "#ef4444")
+    .attr("stroke-width", 2.5)
+    .attr("d", d3.line()
+      .x(d => x(d.year))
+      .y(d => y(d.avg))
+    )
+
+  // Círculos interativos de média
+  g.selectAll(".pit-point")
+    .data(pitStopEvolution)
+    .enter()
+    .append("circle")
+    .attr("class", "pit-point clickable")
+    .attr("cx", d => x(d.year))
+    .attr("cy", d => y(d.avg))
+    .attr("r", 4)
+    .attr("fill", "#ef4444")
+    .attr("stroke", "#020617")
+    .attr("stroke-width", 1)
+    .on("mouseover", (event, d) => {
+      showTooltip(event, `
+        <b>Temporada: ${d.year}</b><br>
+        Tempo Médio Geral: ${d.avg.toFixed(3)}s
+      `)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).ticks(10).tickFormat(d3.format("d")))
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(d => `${d}s`))
+}
+
+function drawPitStopCorrelationChart() {
+  const svg = d3.select("#pitStopCorrelationChart")
+  svg.selectAll("*").remove()
+
+  const width = +svg.attr("width")
+  const height = +svg.attr("height")
+  const margin = { top: 35, right: 40, bottom: 50, left: 60 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`)
+
+  // 1. Filtrar as corridas da temporada selecionada
+  const selectedYearRaces = dataGlobal.filter(d => d.year === selectedPitYear)
+  const selectedRaceIds = new Set(selectedYearRaces.map(r => r.raceId))
+
+  // 2. Filtrar os pit stops dessas corridas
+  const yearStops = pitStopsRaw.filter(s => selectedRaceIds.has(+s.raceId))
+
+  // 3. Somar os tempos de pit stop por piloto e corrida (tempo total de box por GP)
+  const stopMap = new Map() // chave: `${raceId}-${driverId}` -> total ms nos boxes
+  yearStops.forEach(s => {
+    const key = `${s.raceId}-${s.driverId}`
+    stopMap.set(key, (stopMap.get(key) || 0) + (+s.milliseconds))
+  })
+
+  // 4. Filtrar resultados correspondentes
+  const yearResults = resultsRaw.filter(r => selectedRaceIds.has(+r.raceId))
+
+  // 5. Agrupar dados finais de dispersão
+  const data = []
+  yearResults.forEach(res => {
+    const key = `${res.raceId}-${res.driverId}`
+    const totalMs = stopMap.get(key)
+    const pos = +res.positionOrder
+
+    if (totalMs && pos >= 1 && pos <= 20) {
+      const totalSec = totalMs / 1000
+      // Descartar paradas excessivamente longas (>90s) causadas por batidas/quebras
+      if (totalSec < 90) {
+        const driverName = driversMap.get(+res.driverId)?.name || `Piloto ${res.driverId}`
+        const raceName = racesMap.get(+res.raceId)?.name || `GP ${res.raceId}`
+        data.push({
+          driverName,
+          raceName,
+          totalSec,
+          pos
+        })
+      }
+    }
+  })
+
+  if (data.length === 0) {
+    g.append("text")
+      .attr("x", chartWidth / 2)
+      .attr("y", chartHeight / 2)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#94a3b8")
+      .text("Sem dados de pit stops para esta temporada.")
+    return
+  }
+
+  const x = d3.scaleLinear()
+    .domain([d3.min(data, d => d.totalSec) - 2, d3.max(data, d => d.totalSec) + 2])
+    .nice()
+    .range([0, chartWidth])
+
+  const y = d3.scaleLinear()
+    .domain([1, 20])
+    .range([0, chartHeight]) // 1 na parte superior, 20 na parte inferior
+
+  // Renderizar pontos de dispersão
+  g.selectAll(".dot")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("class", "dot")
+    .attr("cx", d => x(d.totalSec))
+    .attr("cy", d => y(d.pos))
+    .attr("r", 4.5)
+    .attr("fill", "#3b82f6")
+    .attr("stroke", "#020617")
+    .attr("stroke-width", 0.5)
+    .attr("fill-opacity", 0.75)
+    .on("mouseover", (event, d) => {
+      showTooltip(event, `
+        <b>${d.driverName}</b><br>
+        Corrida: ${d.raceName}<br>
+        Tempo nos boxes: ${d.totalSec.toFixed(3)}s<br>
+        Posição final: ${d.pos}º colocado
+      `)
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseout", hideTooltip)
+
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).ticks(8).tickFormat(d => `${d}s`))
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(20).tickFormat(d => `${d}º`))
+
+  // Calcular linha de regressão linear para mostrar tendência
+  const xMean = d3.mean(data, d => d.totalSec)
+  const yMean = d3.mean(data, d => d.pos)
+  let num = 0
+  let den = 0
+  data.forEach(d => {
+    num += (d.totalSec - xMean) * (d.pos - yMean)
+    den += (d.totalSec - xMean) ** 2
+  })
+  const slope = den !== 0 ? num / den : 0
+  const intercept = yMean - slope * xMean
+
+  const xMin = d3.min(data, d => d.totalSec)
+  const xMax = d3.max(data, d => d.totalSec)
+  const y1 = slope * xMin + intercept
+  const y2 = slope * xMax + intercept
+
+  g.append("line")
+    .attr("class", "trend-line")
+    .attr("x1", x(xMin))
+    .attr("y1", y(Math.max(1, Math.min(20, y1))))
+    .attr("x2", x(xMax))
+    .attr("y2", y(Math.max(1, Math.min(20, y2))))
+    .attr("stroke", "#e10600")
+    .attr("stroke-width", 2)
+    .attr("stroke-dasharray", "4,4")
+    .attr("opacity", 0.8)
+
+  document.getElementById("pitCorrelationTitle").innerText = `Tempo nos Boxes vs Posição Final em ${selectedPitYear}`
+}
+
+// =====================================================
+// 14. EVENTOS DOS CONTROLES
 // =====================================================
 
 function configureEvents() {
+  // Configurar listeners de imediato (com checagens de arrays vazios para evitar falhas)
+
   slider.addEventListener("input", () => {
+    if (dataGlobal.length === 0) return
     stopAnimation()
     update(+slider.value)
   })
 
   yearSelect.addEventListener("change", event => {
+    if (dataGlobal.length === 0) return
     const year = +event.target.value
     selectLastRaceOfYear(year)
   })
 
+  decadeSelect.addEventListener("change", event => {
+    if (dataGlobal.length === 0) return
+    const decade = event.target.value
+    updateYearSelectForDecade(decade)
+  })
+
   clearFilterBtn.addEventListener("click", () => {
+    if (dataGlobal.length === 0) return
     selectedContinent = null
+    decadeSelect.value = "all"
+    updateYearSelectForDecade("all")
     stopAnimation()
     refreshAllVisualizations()
   })
 
   playBtn.onclick = () => {
+    if (dataGlobal.length === 0) return
     if (!playing) {
       playing = true
       playBtn.innerText = "⏸"
@@ -1084,4 +2149,95 @@ function configureEvents() {
       stopAnimation()
     }
   }
+
+  // Eventos da aba de Hegemonia (Aba 2)
+  toggleHegemonyTypeBtn.addEventListener("click", () => {
+    if (resultsRaw.length === 0) return
+    if (hegemonyType === "drivers") {
+      hegemonyType = "constructors"
+      toggleHegemonyTypeBtn.innerText = "Equipes"
+      toggleHegemonyTypeBtn.classList.remove("primary-button")
+      toggleHegemonyTypeBtn.classList.add("secondary-button")
+    } else {
+      hegemonyType = "drivers"
+      toggleHegemonyTypeBtn.innerText = "Pilotos"
+      toggleHegemonyTypeBtn.classList.remove("secondary-button")
+      toggleHegemonyTypeBtn.classList.add("primary-button")
+    }
+    updateHegemonyChart()
+    updateLeaderboardTable()
+  })
+
+  toggleHegemonyMetricBtn.addEventListener("click", () => {
+    if (resultsRaw.length === 0) return
+    if (hegemonyMetric === "championships") {
+      hegemonyMetric = "wins"
+      toggleHegemonyMetricBtn.innerText = "Vitórias em GPs"
+    } else {
+      hegemonyMetric = "championships"
+      toggleHegemonyMetricBtn.innerText = "Campeonatos Mundiais"
+    }
+    updateHegemonyChart()
+    updateLeaderboardTable()
+  })
+
+  // Eventos da aba de Pit Stops (Aba 4)
+  pitYearSelect.addEventListener("change", event => {
+    if (pitStopsRaw.length === 0) return
+    stopPitAnimation()
+    setSelectedPitYear(+event.target.value)
+  })
+
+  pitPlayBtn.addEventListener("click", () => {
+    if (pitStopsRaw.length === 0) return
+
+    stopAnimation()
+
+    if (!pitPlaying) {
+      // Ensure we start at the earliest year when play begins
+      const years = getPitYears()
+      if (years.length === 0) return
+      if (!years.includes(selectedPitYear) || selectedPitYear > years[years.length - 1]) {
+        setSelectedPitYear(years[0])
+      }
+      pitPlaying = true
+      pitPlayBtn.innerText = "⏸"
+
+      pitInterval = setInterval(() => {
+        if (!playNextPitYear()) {
+          stopPitAnimation()
+        }
+      }, 900)
+    } else {
+      stopPitAnimation()
+    }
+  })
+
+  // Eventos de troca de Abas (Trabalha de imediato sem depender de carregamento de dados)
+  document.querySelectorAll(".tab-button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"))
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"))
+
+      button.classList.add("active")
+      const tabId = button.getAttribute("data-tab")
+      document.getElementById(`content-${tabId}`).classList.add("active")
+
+      // Atualiza os gráficos específicos da aba selecionada (com verificações internas de carregamento)
+      if (tabId === "global") {
+        stopPitAnimation()
+        refreshAllVisualizations()
+      } else if (tabId === "hegemonia") {
+        stopPitAnimation()
+        updateHegemonyChart()
+        updateLeaderboardTable()
+      } else if (tabId === "pole") {
+        stopPitAnimation()
+        updatePoleCharts()
+      } else if (tabId === "pitstops") {
+        stopAnimation()
+        updatePitStopCharts()
+      }
+    })
+  })
 }

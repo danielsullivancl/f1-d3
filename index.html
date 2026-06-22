@@ -16,133 +16,242 @@
   <main class="page">
 
     <header class="hero">
-
       <div class="header">
         <img src="img/logo-f1.png" class="logo" alt="Logo da Fórmula 1">
-
         <div>
-          <h1>Expansão Global da Fórmula 1</h1>
-
+          <h1>Análise Histórica da Fórmula 1</h1>
           <p class="subtitle">
-            Uma visualização interativa da evolução geográfica, logística e temporal do calendário da Fórmula 1.
+            Uma visualização interativa da expansão geográfica, da hegemonia de pilotos e equipes, e de fatores cruciais de corrida como pit stops e pole positions.
           </p>
         </div>
       </div>
+    </header>
 
+    <!-- Barra de Abas -->
+    <nav class="tabs-bar">
+      <button class="tab-button active" data-tab="global">🌍 Expansão Global</button>
+      <button class="tab-button" data-tab="hegemonia">🏆 Hegemonia Histórica</button>
+      <button class="tab-button" data-tab="pole">🚦 Pole vs Vitória</button>
+      <button class="tab-button" data-tab="pitstops">⏱️ Pit Stops</button>
+    </nav>
+
+    <!-- ABA 1: EXPANSÃO GLOBAL -->
+    <div class="tab-content active" id="content-global">
       <section class="questions">
         <p>
           <strong>Pergunta central:</strong>
           como a Fórmula 1 evoluiu de um campeonato concentrado na Europa para um produto esportivo global?
         </p>
-
         <p>
           <strong>Hipóteses:</strong>
           a expansão reduziu a concentração europeia, aumentou o número de países visitados e tornou o calendário logisticamente mais complexo.
         </p>
       </section>
 
-    </header>
+      <section class="panel controls-panel">
+        <div class="top-controls">
+          <label for="yearSelect">Ano</label>
+          <select id="yearSelect"></select>
 
-    <section class="panel controls-panel">
+          <label for="decadeSelect" style="margin-left: 15px;">Filtrar por Década</label>
+          <select id="decadeSelect">
+            <option value="all">Todas as décadas</option>
+            <option value="1950">Anos 50</option>
+            <option value="1960">Anos 60</option>
+            <option value="1970">Anos 70</option>
+            <option value="1980">Anos 80</option>
+            <option value="1990">Anos 90</option>
+            <option value="2000">Anos 2000</option>
+            <option value="2010">Anos 2010</option>
+            <option value="2020">Anos 2020</option>
+          </select>
 
-      <div class="top-controls">
+          <button id="clearFilterBtn" class="secondary-button" style="margin-left: 15px;">
+            Limpar filtro
+          </button>
+        </div>
+        <div class="filter-status" id="filterStatus">
+          Filtro: todos os continentes
+        </div>
+      </section>
 
-        <label for="yearSelect">Ano</label>
+      <section class="map-section chart-card">
+        <div class="map-header">
+          <div>
+            <h3>Mapa e rota da temporada</h3>
+            <p class="chart-hint">
+              Use o slider para avançar rodada a rodada. Com filtro de continente ativo, o mapa mostra apenas as corridas daquele continente.
+            </p>
+          </div>
+          <div id="label" class="round-label"></div>
+        </div>
+        <svg id="map" width="900" height="500"></svg>
+        <div class="controls">
+          <input type="range" id="slider">
+          <button id="playBtn">▶</button>
+        </div>
+      </section>
 
-        <select id="yearSelect"></select>
+      <!-- CALENDÁRIO -->
+      <section class="calendar-container chart-card">
+        <h3>Calendário de corridas</h3>
+        <p class="chart-hint">
+          As células destacadas indicam dias com corrida no ano selecionado.
+        </p>
+        <svg id="calendarChart" width="900" height="120"></svg>
+      </section>
 
-        <button id="clearFilterBtn" class="secondary-button">
-          Limpar filtro
-        </button>
-
-      </div>
-
-      <div class="filter-status" id="filterStatus">
-        Filtro: todos os continentes
-      </div>
-
-    </section>
-
-    <section class="map-section chart-card">
-
-      <div class="map-header">
-
-        <div>
-
-          <h3>Mapa e rota da temporada</h3>
-
-          <p class="chart-hint">
-            Use o slider para avançar rodada a rodada. Com filtro de continente ativo, o mapa mostra apenas as corridas daquele continente.
-          </p>
-
+      <section class="top-row">
+        <div class="chart-card">
+          <svg id="lineChart" width="450" height="250"></svg>
         </div>
 
-        <div id="label" class="round-label"></div>
+        <div class="chart-card">
+          <svg id="countriesChart" width="450" height="250"></svg>
+        </div>
 
-      </div>
+        <div class="chart-card">
+          <p class="chart-hint">
+            Clique em um continente para filtrar todos os gráficos.
+          </p>
+          <svg id="continentChart" width="450" height="250"></svg>
+        </div>
 
-      <svg id="map" width="900" height="500"></svg>
+        <div class="chart-card">
+          <svg id="donutChart" width="420" height="320"></svg>
+        </div>
 
-      <div class="controls">
+        <div class="chart-card">
+          <h3>Distribuição geográfica das corridas</h3>
+          <p class="chart-hint">
+            Evolução da proporção de corridas por continente ao longo do tempo.
+          </p>
+          <svg id="stackedAreaChart" width="920" height="420"></svg>
+        </div>
 
-        <input type="range" id="slider">
+        <div class="chart-card">
+          <h3>Países recordistas em sediar GPs</h3>
+          <p class="chart-hint">
+            Número total de corridas sediadas por cada país na história da F1.
+          </p>
+          <svg id="topCountriesChart" width="920" height="300"></svg>
+        </div>
+      </section>
+    </div>
 
-        <button id="playBtn">▶</button>
-
-      </div>
-
-    </section>
-
-
-
-
-    <!-- CALENDÁRIO -->
-    <section class="calendar-container chart-card">
-
-      <h3>Calendário de corridas</h3>
-
-      <p class="chart-hint">
-        As células destacadas indicam dias com corrida no ano selecionado.
-      </p>
-
-      <svg id="calendarChart" width="900" height="120"></svg>
-
-    </section>
-
-
-
-    <section class="top-row">
-
-      <div class="chart-card">
-        <svg id="lineChart" width="450" height="250"></svg>
-      </div>
-
-      <div class="chart-card">
-        <svg id="countriesChart" width="450" height="250"></svg>
-      </div>
-
-      <div class="chart-card">
-        <p class="chart-hint">
-          Clique em um continente para filtrar todos os gráficos.
+    <!-- ABA 2: HEGEMONIA HISTÓRICA -->
+    <div class="tab-content" id="content-hegemonia">
+      <section class="questions">
+        <p>
+          <strong>Pergunta central:</strong> quais pilotos e construtores possuem a maior hegemonia (mais vitórias e campeonatos) na história da Fórmula 1?
         </p>
-        <svg id="continentChart" width="450" height="250"></svg>
-      </div>
-
-      <div class="chart-card">
-        <svg id="donutChart" width="420" height="320"></svg>
-      </div>
-
-      <div class="chart-card">
-        <h3>Distribuição geográfica das corridas</h3>
-        <p class="chart-hint">
-          Evolução da proporção de corridas por continente ao longo do tempo.
+        <p>
+          <strong>Destaque histórico:</strong> veja quem domina os rankings absolutos. Os dados mostram a distribuição acumulada de títulos mundiais e vitórias individuais desde a criação da categoria em 1950.
         </p>
-        <svg id="stackedAreaChart" width="920" height="420"></svg>
-      </div>
+      </section>
 
-    </section>
+      <section class="panel controls-panel">
+        <div class="top-controls">
+          <span style="font-weight: bold; margin-right: 10px;">Visualizar:</span>
+          <button id="toggleHegemonyTypeBtn" class="primary-button">Pilotos</button>
+          
+          <span style="font-weight: bold; margin-left: 20px; margin-right: 10px;">Métrica:</span>
+          <button id="toggleHegemonyMetricBtn" class="secondary-button">Campeonatos Mundiais</button>
+        </div>
+      </section>
 
-    
+      <section class="top-row">
+        <div class="chart-card" style="width: 100%; max-width: 920px;">
+          <h3 id="hegemonyChartTitle">Maiores Campeões Mundiais (Pilotos)</h3>
+          <p class="chart-hint">Ranking histórico acumulado desde 1950.</p>
+          <svg id="hegemonyChart" width="900" height="450"></svg>
+        </div>
+      </section>
+
+      <section class="chart-card" style="margin: 20px auto; max-width: 920px; text-align: left; padding: 20px;">
+        <h3>Quadro de Honra (Top 10)</h3>
+        <p class="chart-hint">Estatísticas detalhadas dos maiores ícones da história da Fórmula 1.</p>
+        <div class="table-container">
+          <table class="leaderboard-table" id="leaderboardTable">
+            <thead>
+              <tr>
+                <th>Ranking</th>
+                <th>Nome / Equipe</th>
+                <th>Títulos Mundiais</th>
+                <th>Vitórias em GPs</th>
+                <th>Nacionalidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Preenchido via Javascript -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 3: POLE POSITION VS VITÓRIA -->
+    <div class="tab-content" id="content-pole">
+      <section class="questions">
+        <p>
+          <strong>Pergunta central:</strong> qual é a correlação entre largar na pole position (ou nas primeiras posições) e vencer a corrida? Essa vantagem mudou ao longo dos anos?
+        </p>
+        <p>
+          <strong>Dica visual:</strong> analise a conversão histórica da pole position em vitória e como as chances de terminar no pódio caem conforme a posição de largada no grid.
+        </p>
+      </section>
+
+      <section class="top-row">
+        <div class="chart-card" style="width: 100%; max-width: 920px;">
+          <h3>Taxa de conversão da Pole Position em Vitória (%)</h3>
+          <p class="chart-hint">Porcentagem de poles que venceram a corrida em cada temporada da história da F1.</p>
+          <svg id="poleConversionChart" width="900" height="350"></svg>
+        </div>
+
+        <div class="chart-card" style="width: 100%; max-width: 920px; margin-top: 20px;">
+          <h3>Matriz de Correlação: Posição de Larga (Grid) vs. Posição de Chegada</h3>
+          <p class="chart-hint">
+            O tamanho e cor da bolha representam o número acumulado de pilotos que largaram na posição X e terminaram na posição Y.
+          </p>
+          <svg id="gridCorrelationChart" width="900" height="480"></svg>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 4: PIT STOPS -->
+    <div class="tab-content" id="content-pitstops">
+      <section class="questions">
+        <p>
+          <strong>Pergunta central:</strong> como os tempos médios de pit stop evoluíram desde que começaram a ser registrados, e qual o impacto deles no resultado das corridas mais recentes?
+        </p>
+        <p>
+          <strong>Contexto técnico:</strong> os tempos de pit stop são registrados sistematicamente desde a temporada de 2011. A evolução mostra a incrível precisão dos mecânicos e o efeito do fim de reabastecimentos.
+        </p>
+      </section>
+
+      <section class="panel controls-panel">
+        <div class="top-controls">
+          <label for="pitYearSelect">Temporada Analisada (Impacto Recente)</label>
+          <select id="pitYearSelect"></select>
+          <button id="pitPlayBtn">▶</button>
+          <span class="chart-hint" style="margin-left: 15px; color: #fca5a5;">(Dados disponíveis de 2011 a 2023+)</span>
+        </div>
+      </section>
+
+      <section class="top-row">
+        <div class="chart-card" style="width: 100%; max-width: 920px;">
+          <h3>Evolução Histórica do Tempo Médio de Pit Stop (2011+)</h3>
+          <p class="chart-hint">Média anual calculada filtrando anomalias (paradas acima de 60 segundos de consertos mecânicos).</p>
+          <svg id="pitStopEvolutionChart" width="900" height="350"></svg>
+        </div>
+
+        <div class="chart-card" style="width: 100%; max-width: 920px; margin-top: 20px;">
+          <h3 id="pitCorrelationTitle">Pit Stops vs Posição Final (Temporada)</h3>
+          <p class="chart-hint">Tempo total gasto em pit stops (s) vs. posição de classificação final do piloto na corrida.</p>
+          <svg id="pitStopCorrelationChart" width="900" height="420"></svg>
+        </div>
+      </section>
+    </div>
 
   </main>
 

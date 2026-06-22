@@ -249,3 +249,160 @@ input[type="range"]::-webkit-slider-thumb {
     text-align: left;
   }
 }
+
+/* =====================================================
+   TAB NAVIGATION STYLES
+   ===================================================== */
+.tabs-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px auto 25px;
+  width: min(930px, 100%);
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.tab-button {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-button:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-button.active {
+  background: #e10600; /* Vermelho F1 */
+  color: white;
+  box-shadow: 0 4px 15px rgba(225, 6, 0, 0.4);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =====================================================
+   TABLE & LEADBOARD STYLES
+   ===================================================== */
+.table-container {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.leaderboard-table th, 
+.leaderboard-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #1e293b;
+}
+
+.leaderboard-table th {
+  background: #020617;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leaderboard-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.leaderboard-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard-table td {
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.leaderboard-table tr:first-child td {
+  font-weight: 700;
+}
+
+.leaderboard-table tr:nth-child(1) td:first-child { color: #facc15; } /* Gold */
+.leaderboard-table tr:nth-child(2) td:first-child { color: #cbd5e1; } /* Silver */
+.leaderboard-table tr:nth-child(3) td:first-child { color: #cd7f32; } /* Bronze */
+
+/* =====================================================
+   HEGEMONY & TOGGLE BUTTONS
+   ===================================================== */
+.primary-button {
+  background: #e10600;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(225, 6, 0, 0.25);
+}
+
+.primary-button:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 15px rgba(225, 6, 0, 0.4);
+}
+
+/* SVGs styling overrides */
+#poleConversionChart,
+#gridCorrelationChart,
+#pitStopEvolutionChart,
+#pitStopCorrelationChart,
+#hegemonyChart,
+#topCountriesChart {
+  background: #020617;
+  border-radius: 12px;
+  margin: 10px auto;
+  display: block;
+  max-width: 100%;
+}
+
+/* Correlation elements styling */
+.correlation-bubble {
+  stroke-width: 1.5;
+  transition: fill-opacity 0.2s;
+}
+
+.correlation-bubble:hover {
+  fill-opacity: 0.95;
+  stroke: white;
+}
+
+.trend-line {
+  stroke: #ef4444;
+  stroke-dasharray: 4 4;
+}
+
