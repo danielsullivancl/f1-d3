@@ -535,7 +535,7 @@ function populatePitYearSelect() {
 
   const pitYears = [...new Set(pitStopsRaw.map(s => raceToYearMap.get(+s.raceId)))]
     .filter(y => y !== undefined)
-    .sort((a, b) => b - a) // Mais recente primeiro
+    .sort((a, b) => a - b)
 
   pitYearSelect.innerHTML = ""
   pitYears.forEach(year => {
