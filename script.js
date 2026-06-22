@@ -24,6 +24,36 @@ const projection = d3.geoNaturalEarth1()
 
 const path = d3.geoPath().projection(projection)
 
+
+// Paleta de cores inspirada nas pinturas clássicas das equipes recentes da F1
+const TEAM_COLORS = {
+  "mercedes": "#00D2BE",
+  "ferrari": "#DC0000",
+  "red bull": "#0600EF",
+  "mclaren": "#FF8700",
+  "aston martin": "#006F62",
+  "alpine": "#0090FF",
+  "williams": "#005AFF",
+  "alphatauri": "#2B4562",
+  "haas": "#FFFFFF",
+  "alfa romeo": "#900000",
+  "renault": "#FFF500",
+  "racing point": "#F596C8",
+  "force india": "#F596C8",
+  "sauber": "#006EFF",
+  "toro rosso": "#0000FF"
+};
+
+// Retorna a cor da equipe ou uma cor categórica de fallback
+function getTeamColor(teamName, fallbackScale) {
+  const name = teamName.toLowerCase();
+  for (const key in TEAM_COLORS) {
+    if (name.includes(key)) return TEAM_COLORS[key];
+  }
+  return fallbackScale(teamName);
+}
+
+
 // Tooltip global reutilizável para mostrar informações ao passar o mouse
 const tooltip = d3.select("body")
   .append("div")
@@ -38,6 +68,7 @@ let playing = false
 let interval = null // referência ao timer de reprodução
 let pitPlaying = false
 let pitInterval = null // referência ao timer da reprodução da aba Pit Stops
+let hiddenTeams = new Set() // Set para guardar quais equipes estão escondidas no gráfico de Pit Stops
 
 // Referências globais para novos dados
 let racesGlobal = []
@@ -1437,7 +1468,7 @@ function drawStackedAreaLegend(svgArea, continents, color) {
 }
 
 // =====================================================
-// 10.2 PAÍSES RECORDISTAS EM SEDIAR GPS (NOVO - ABA 1)
+// 10.2 PAÍSES RECORDISTAS EM SEDIAR GPS (ABA 1)
 // =====================================================
 
 function updateTopCountriesChart() {
@@ -1987,7 +2018,7 @@ function drawPitStopCorrelationChart() {
   // 4. Filtrar resultados correspondentes
   const yearResults = resultsRaw.filter(r => selectedRaceIds.has(+r.raceId))
 
-  // 5. Agrupar dados finais de dispersão
+ // 5. Agrupar dados finais de dispersão
   const data = []
   yearResults.forEach(res => {
     const key = `${res.raceId}-${res.driverId}`
@@ -2000,9 +2031,14 @@ function drawPitStopCorrelationChart() {
       if (totalSec < 90) {
         const driverName = driversMap.get(+res.driverId)?.name || `Piloto ${res.driverId}`
         const raceName = racesMap.get(+res.raceId)?.name || `GP ${res.raceId}`
+        
+        // Resgatando o nome da equipe usando o ID
+        const constructorName = constructorsMap.get(+res.constructorId)?.name || `Equipe ${res.constructorId}`
+
         data.push({
           driverName,
           raceName,
+          constructorName, // Armazenando a equipe
           totalSec,
           pos
         })
@@ -2029,22 +2065,88 @@ function drawPitStopCorrelationChart() {
     .domain([1, 20])
     .range([0, chartHeight]) // 1 na parte superior, 20 na parte inferior
 
-  // Renderizar pontos de dispersão
+  // Escala de cores fallback caso a equipe não esteja no nosso mapeamento manual
+  const fallbackColorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+  // Pega apenas as equipas únicas que correram neste ano
+  const uniqueTeams = [...new Set(data.map(d => d.constructorName))].sort();
+  const legendContainer = d3.select("#teamLegendContainer");
+  legendContainer.selectAll("*").remove(); // Limpa a legenda anterior
+
+  // 1. CRIAR UM CONTENTOR PARA OS BOTÕES DE "MARCAR/DESMARCAR TODOS"
+  const controlsContainer = legendContainer.append("div")
+    .style("width", "100%")
+    .style("display", "flex")
+    .style("justify-content", "center")
+    .style("gap", "10px")
+    .style("margin-bottom", "12px");
+
+  // Botão: Marcar Todos
+  controlsContainer.append("div")
+    .attr("class", "team-badge active") // "active" para manter a opacidade a 100%
+    .style("background-color", "#334155") // Cor neutra escurecida
+    .text("✅ Marcar Todas")
+    .on("click", () => {
+      hiddenTeams.clear(); // Limpa o Set (mostra todas)
+      drawPitStopCorrelationChart(); // Redesenha
+    });
+
+  // Botão: Desmarcar Todos
+  controlsContainer.append("div")
+    .attr("class", "team-badge active")
+    .style("background-color", "#334155")
+    .text("❌ Remover Todas")
+    .on("click", () => {
+      // Adiciona todas as equipas ao Set de equipas escondidas
+      uniqueTeams.forEach(team => hiddenTeams.add(team));
+      drawPitStopCorrelationChart(); // Redesenha
+    });
+
+  // 2. CRIAR UM CONTENTOR PARA AS EQUIPAS
+  const badgesContainer = legendContainer.append("div")
+    .style("display", "flex")
+    .style("flex-wrap", "wrap")
+    .style("gap", "8px")
+    .style("justify-content", "center");
+
+  // Gerar as pílulas individuais para cada equipa
+  uniqueTeams.forEach(team => {
+    const isHidden = hiddenTeams.has(team);
+    
+    badgesContainer.append("div")
+      .attr("class", `team-badge ${isHidden ? "" : "active"}`)
+      .style("background-color", getTeamColor(team, fallbackColorScale))
+      .text(team)
+      .on("click", function() {
+        if (hiddenTeams.has(team)) {
+          hiddenTeams.delete(team); 
+        } else {
+          hiddenTeams.add(team); 
+        }
+        drawPitStopCorrelationChart(); 
+      });
+  });
+
+  // Filtrar os dados finais removendo as equipas ocultadas pelo utilizador
+  const filteredData = data.filter(d => !hiddenTeams.has(d.constructorName));
+
+  // Renderizar pontos de dispersão APENAS com os dados filtrados
   g.selectAll(".dot")
-    .data(data)
+    .data(filteredData)
     .enter()
     .append("circle")
     .attr("class", "dot")
+    // ... resto do seu código de círculos (cx, cy, r, fill, etc) continua igual
     .attr("cx", d => x(d.totalSec))
     .attr("cy", d => y(d.pos))
-    .attr("r", 4.5)
-    .attr("fill", "#3b82f6")
+    .attr("r", 5)
+    .attr("fill", d => getTeamColor(d.constructorName, fallbackColorScale)) // Cor por equipe
     .attr("stroke", "#020617")
     .attr("stroke-width", 0.5)
-    .attr("fill-opacity", 0.75)
+    .attr("fill-opacity", 0.9) // Aumentamos um pouco a opacidade
     .on("mouseover", (event, d) => {
       showTooltip(event, `
-        <b>${d.driverName}</b><br>
+        <b>${d.driverName}</b> (${d.constructorName})<br>
         Corrida: ${d.raceName}<br>
         Tempo nos boxes: ${d.totalSec.toFixed(3)}s<br>
         Posição final: ${d.pos}º colocado

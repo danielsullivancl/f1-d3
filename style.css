@@ -406,3 +406,36 @@ input[type="range"]::-webkit-slider-thumb {
   stroke-dasharray: 4 4;
 }
 
+/* =====================================================
+   LEGENDA DE EQUIPES (PIT STOPS)
+   ===================================================== */
+.team-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+  padding: 0 15px;
+}
+
+.team-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: rgb(0, 0, 0);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  opacity: 0.3; /* Estado inativo (desligado) */
+}
+
+.team-badge.active {
+  opacity: 1; /* Estado ativo (ligado) */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.team-badge:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.2);
+}
