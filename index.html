@@ -146,24 +146,40 @@
           <strong>Pergunta central:</strong> quais pilotos e construtores possuem a maior hegemonia (mais vitórias e campeonatos) na história da Fórmula 1?
         </p>
         <p>
-          <strong>Destaque histórico:</strong> veja quem domina os rankings absolutos. Os dados mostram a distribuição acumulada de títulos mundiais e vitórias individuais desde a criação da categoria em 1950.
+          <strong>Destaque histórico:</strong> veja quem domina os rankings absolutos. Os dados mostram a distribuição acumulada de títulos mundiais e vitórias individuais desde a criação da categoria em 1950 até 2024.
         </p>
       </section>
 
       <section class="panel controls-panel">
-        <div class="top-controls">
-          <span style="font-weight: bold; margin-right: 10px;">Visualizar:</span>
-          <button id="toggleHegemonyTypeBtn" class="primary-button">Pilotos</button>
-          
-          <span style="font-weight: bold; margin-left: 20px; margin-right: 10px;">Métrica:</span>
-          <button id="toggleHegemonyMetricBtn" class="secondary-button">Campeonatos Mundiais</button>
+      <div class="top-controls" style="gap: 40px; flex-wrap: wrap;">
+        
+        <!-- Toggle Pilotos vs Equipes -->
+        <div class="toggle-wrapper">
+          <label for="hegemonyTypeToggle" class="toggle-label active" id="labelDrivers">Pilotos</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="hegemonyTypeToggle">
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="hegemonyTypeToggle" class="toggle-label" id="labelTeams">Equipes</label>
         </div>
-      </section>
+
+        <!-- Toggle Mundiais vs GPs -->
+        <div class="toggle-wrapper">
+          <label for="hegemonyMetricToggle" class="toggle-label active" id="labelChamps">Títulos Mundiais</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="hegemonyMetricToggle">
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="hegemonyMetricToggle" class="toggle-label" id="labelWins">Vitórias em GPs</label>
+        </div>
+
+      </div>
+    </section>
 
       <section class="top-row">
         <div class="chart-card" style="width: 100%; max-width: 920px;">
           <h3 id="hegemonyChartTitle">Maiores Campeões Mundiais (Pilotos)</h3>
-          <p class="chart-hint">Ranking histórico acumulado desde 1950.</p>
+          <p class="chart-hint">Ranking histórico acumulado de 1950 até 2024.</p>
           <svg id="hegemonyChart" width="900" height="450"></svg>
         </div>
       </section>
@@ -198,6 +214,9 @@
         </p>
         <p>
           <strong>Dica visual:</strong> analise a conversão histórica da pole position em vitória e como as chances de terminar no pódio caem conforme a posição de largada no grid.
+        </p>
+        <p>
+         Os dados mostram o histórico desde a criação da categoria em 1950 até 2024.
         </p>
       </section>
 
@@ -234,13 +253,13 @@
           <label for="pitYearSelect">Temporada Analisada (Impacto Recente)</label>
           <select id="pitYearSelect"></select>
           <button id="pitPlayBtn">▶</button>
-          <span class="chart-hint" style="margin-left: 15px; color: #fca5a5;">(Dados disponíveis de 2011 a 2023+)</span>
+          <span class="chart-hint" style="margin-left: 15px; color: #fca5a5;">(Dados disponíveis de 2011 a 2024)</span>
         </div>
       </section>
 
       <section class="top-row">
         <div class="chart-card" style="width: 100%; max-width: 920px;">
-          <h3>Evolução Histórica do Tempo Médio de Pit Stop (2011+)</h3>
+          <h3>Evolução Histórica do Tempo Médio de Pit Stop (2011 a 2024)</h3>
           <p class="chart-hint">Média anual calculada filtrando anomalias (paradas acima de 60 segundos de consertos mecânicos).</p>
           <svg id="pitStopEvolutionChart" width="900" height="350"></svg>
         </div>

@@ -25,30 +25,38 @@ const projection = d3.geoNaturalEarth1()
 const path = d3.geoPath().projection(projection)
 
 
-// Paleta de cores inspirada nas pinturas clássicas das equipes recentes da F1
+// Paleta de cores
 const TEAM_COLORS = {
-  "mercedes": "#00D2BE",
-  "ferrari": "#DC0000",
-  "red bull": "#0600EF",
-  "mclaren": "#FF8700",
-  "aston martin": "#006F62",
-  "alpine": "#0090FF",
-  "williams": "#005AFF",
-  "alphatauri": "#2B4562",
-  "haas": "#FFFFFF",
-  "alfa romeo": "#900000",
-  "renault": "#FFF500",
-  "racing point": "#F596C8",
-  "force india": "#F596C8",
-  "sauber": "#006EFF",
-  "toro rosso": "#0000FF"
+  "ferrari": "#DC0000",       
+  "haas": "#FFFFFF",          
+  "red bull": "#42A5F5",      
+  "mercedes": "#00BFA5",      
+  "mclaren": "#FF9800",       
+  "aston martin": "#3CB371",  
+  "alpine": "#FF66B2",        
+  "williams": "#9FA8DA",      
+  "alphatauri": "#B0BEC5",    
+  "alfa romeo": "#E57373",    
+  "renault": "#FFEB3B",       
+  "racing point": "#F48FB1",  
+  "force india": "#FFE082",   
+  "sauber": "#76FF03",        
+  "toro rosso": "#7E57C2",    
+  "lotus": "#D4AF37",         
+  "virgin": "#FF7043",        
+  "hrt": "#D7CCC8",           
+  "marussia": "#9E9E9E",      
+  "caterham": "#8BC34A",      
+  "rb f1 team": "#81D4FA"     
 };
 
 // Retorna a cor da equipe ou uma cor categórica de fallback
 function getTeamColor(teamName, fallbackScale) {
   const name = teamName.toLowerCase();
   for (const key in TEAM_COLORS) {
-    if (name.includes(key)) return TEAM_COLORS[key];
+    if (name.includes(key)){
+     return TEAM_COLORS[key];
+     }
   }
   return fallbackScale(teamName);
 }
@@ -1914,6 +1922,8 @@ function drawGridCorrelationChart() {
     .call(d3.axisLeft(y).ticks(20).tickFormat(d => `${d}º`))
 }
 
+
+
 // =====================================================
 // 13. PIT STOPS - GRAFICOS (ABA 4)
 // =====================================================
@@ -1942,7 +1952,7 @@ function drawPitStopEvolutionChart() {
     .range([0, chartWidth])
 
   const y = d3.scaleLinear()
-    .domain([d3.min(pitStopEvolution, d => d.avg) - 1, d3.max(pitStopEvolution, d => d.avg) + 1])
+    .domain([0, d3.max(pitStopEvolution, d => d.avg) + 1])
     .nice()
     .range([chartHeight, 0])
 
@@ -2253,35 +2263,43 @@ function configureEvents() {
   }
 
   // Eventos da aba de Hegemonia (Aba 2)
-  toggleHegemonyTypeBtn.addEventListener("click", () => {
-    if (resultsRaw.length === 0) return
-    if (hegemonyType === "drivers") {
-      hegemonyType = "constructors"
-      toggleHegemonyTypeBtn.innerText = "Equipes"
-      toggleHegemonyTypeBtn.classList.remove("primary-button")
-      toggleHegemonyTypeBtn.classList.add("secondary-button")
-    } else {
-      hegemonyType = "drivers"
-      toggleHegemonyTypeBtn.innerText = "Pilotos"
-      toggleHegemonyTypeBtn.classList.remove("secondary-button")
-      toggleHegemonyTypeBtn.classList.add("primary-button")
-    }
-    updateHegemonyChart()
-    updateLeaderboardTable()
-  })
+  const typeToggle = document.getElementById("hegemonyTypeToggle");
+  const metricToggle = document.getElementById("hegemonyMetricToggle");
 
-  toggleHegemonyMetricBtn.addEventListener("click", () => {
-    if (resultsRaw.length === 0) return
-    if (hegemonyMetric === "championships") {
-      hegemonyMetric = "wins"
-      toggleHegemonyMetricBtn.innerText = "Vitórias em GPs"
-    } else {
-      hegemonyMetric = "championships"
-      toggleHegemonyMetricBtn.innerText = "Campeonatos Mundiais"
-    }
-    updateHegemonyChart()
-    updateLeaderboardTable()
-  })
+  const labelDrivers = document.getElementById("labelDrivers");
+  const labelTeams = document.getElementById("labelTeams");
+  const labelChamps = document.getElementById("labelChamps");
+  const labelWins = document.getElementById("labelWins");
+
+// Chave Pilotos / Equipes
+typeToggle.addEventListener("change", (event) => {
+  if (event.target.checked) {
+    hegemonyType = "constructors";
+    labelDrivers.classList.remove("active");
+    labelTeams.classList.add("active");
+  } else {
+    hegemonyType = "drivers";
+    labelDrivers.classList.add("active");
+    labelTeams.classList.remove("active");
+  }
+  updateHegemonyChart();
+  updateLeaderboardTable();
+});
+
+// Chave Títulos / Vitórias
+metricToggle.addEventListener("change", (event) => {
+  if (event.target.checked) {
+    hegemonyMetric = "wins";
+    labelChamps.classList.remove("active");
+    labelWins.classList.add("active");
+  } else {
+    hegemonyMetric = "championships";
+    labelChamps.classList.add("active");
+    labelWins.classList.remove("active");
+  }
+  updateHegemonyChart();
+  updateLeaderboardTable();
+});
 
   // Eventos da aba de Pit Stops (Aba 4)
   pitYearSelect.addEventListener("change", event => {
@@ -2296,7 +2314,6 @@ function configureEvents() {
     stopAnimation()
 
     if (!pitPlaying) {
-      // Ensure we start at the earliest year when play begins
       const years = getPitYears()
       if (years.length === 0) return
       if (!years.includes(selectedPitYear) || selectedPitYear > years[years.length - 1]) {
