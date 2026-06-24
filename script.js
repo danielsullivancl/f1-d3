@@ -25,30 +25,38 @@ const projection = d3.geoNaturalEarth1()
 const path = d3.geoPath().projection(projection)
 
 
-// Paleta de cores inspirada nas pinturas clássicas das equipes recentes da F1
+// Paleta de cores
 const TEAM_COLORS = {
-  "mercedes": "#00D2BE",
-  "ferrari": "#DC0000",
-  "red bull": "#0600EF",
-  "mclaren": "#FF8700",
-  "aston martin": "#006F62",
-  "alpine": "#0090FF",
-  "williams": "#005AFF",
-  "alphatauri": "#2B4562",
-  "haas": "#FFFFFF",
-  "alfa romeo": "#900000",
-  "renault": "#FFF500",
-  "racing point": "#F596C8",
-  "force india": "#F596C8",
-  "sauber": "#006EFF",
-  "toro rosso": "#0000FF"
+  "ferrari": "#DC0000",       
+  "haas": "#FFFFFF",          
+  "red bull": "#42A5F5",      
+  "mercedes": "#00BFA5",      
+  "mclaren": "#FF9800",       
+  "aston martin": "#3CB371",  
+  "alpine": "#FF66B2",        
+  "williams": "#9FA8DA",      
+  "alphatauri": "#B0BEC5",    
+  "alfa romeo": "#E57373",    
+  "renault": "#FFEB3B",       
+  "racing point": "#F48FB1",  
+  "force india": "#FFE082",   
+  "sauber": "#76FF03",        
+  "toro rosso": "#7E57C2",    
+  "lotus": "#D4AF37",         
+  "virgin": "#FF7043",        
+  "hrt": "#D7CCC8",           
+  "marussia": "#9E9E9E",      
+  "caterham": "#8BC34A",      
+  "rb f1 team": "#81D4FA"     
 };
 
 // Retorna a cor da equipe ou uma cor categórica de fallback
 function getTeamColor(teamName, fallbackScale) {
   const name = teamName.toLowerCase();
   for (const key in TEAM_COLORS) {
-    if (name.includes(key)) return TEAM_COLORS[key];
+    if (name.includes(key)){
+     return TEAM_COLORS[key];
+     }
   }
   return fallbackScale(teamName);
 }
@@ -1803,9 +1811,9 @@ function drawGridCorrelationChart() {
 
   const width = +svg.attr("width")
   const height = +svg.attr("height")
-  const margin = { top: 30, right: 40, bottom: 50, left: 60 }
-  const chartWidth = width - margin.left - margin.right
-  const chartHeight = height - margin.top - margin.bottom
+  const margin = { top: 40, right: 130, bottom: 60, left: 60 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
 
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`)
@@ -1912,7 +1920,72 @@ function drawGridCorrelationChart() {
   g.append("g")
     .attr("class", "axis")
     .call(d3.axisLeft(y).ticks(20).tickFormat(d => `${d}º`))
+
+  // =====================================================
+  // LEGENDA DA MATRIZ DE CORRELAÇÃO (LISTA VERTICAL)
+  // =====================================================
+  const legendGroup = g.append("g")
+    .attr("transform", `translate(${chartWidth + 30}, 90)`);
+
+  // Título da Legenda (ajustado para alinhar à esquerda)
+  legendGroup.append("text")
+    .attr("x", -15) 
+    .attr("y", -30)
+    .attr("text-anchor", "start")
+    .attr("fill", "#cbd5e1")
+    .attr("font-size", "12px")
+    .attr("font-weight", "bold")
+    .text("Ocorrências");
+
+  // Definir 5 níveis, garantindo que o nível mínimo (1) e o máximo estão presentes
+  const legendValues = [
+    1, // O menor nível absoluto
+    Math.floor(maxCount * 0.25), 
+    Math.floor(maxCount * 0.5), 
+    Math.floor(maxCount * 0.75), 
+    maxCount
+  ];
+  
+  // Garante valores únicos (caso o maxCount seja pequeno), remove zeros e ordena do maior para o menor
+  const uniqueLegendValues = [...new Set(legendValues)]
+    .filter(v => v > 0)
+    .sort((a, b) => b - a);
+
+  // Calcula o maior raio para alinhar os textos de forma reta numa coluna
+  const maxRadius = Math.max(...uniqueLegendValues.map(d => radius(d)));
+  
+  // ESPAÇAMENTO DINÂMICO: Diâmetro da maior bolha (raio * 2) + 2px de margem
+  const verticalSpacing = (maxRadius * 2) + 2;
+
+  // 1. Desenhar os Círculos (Um abaixo do outro)
+  legendGroup.selectAll(".legend-bubble")
+    .data(uniqueLegendValues)
+    .enter()
+    .append("circle")
+    .attr("class", "legend-bubble")
+    .attr("cx", 0)
+    .attr("cy", (d, i) => i * verticalSpacing) 
+    .attr("r", d => radius(d))
+    .attr("fill", d => color(d))
+    .attr("stroke", "white")
+    .attr("stroke-width", 0.5)
+    .attr("fill-opacity", 0.9);
+
+  // 2. Textos (Os valores numéricos ao lado)
+  legendGroup.selectAll(".legend-label")
+    .data(uniqueLegendValues)
+    .enter()
+    .append("text")
+    .attr("class", "legend-label")
+    .attr("x", maxRadius + 15) 
+    .attr("y", (d, i) => i * verticalSpacing) 
+    .attr("fill", "#cbd5e1")
+    .attr("font-size", "11px")
+    .attr("alignment-baseline", "middle")
+    .text(d => d);
 }
+
+
 
 // =====================================================
 // 13. PIT STOPS - GRAFICOS (ABA 4)
@@ -1942,7 +2015,7 @@ function drawPitStopEvolutionChart() {
     .range([0, chartWidth])
 
   const y = d3.scaleLinear()
-    .domain([d3.min(pitStopEvolution, d => d.avg) - 1, d3.max(pitStopEvolution, d => d.avg) + 1])
+    .domain([0, d3.max(pitStopEvolution, d => d.avg) + 1])
     .nice()
     .range([chartHeight, 0])
 
@@ -2252,36 +2325,44 @@ function configureEvents() {
     }
   }
 
-  // Eventos da aba de Hegemonia (Aba 2)
-  toggleHegemonyTypeBtn.addEventListener("click", () => {
-    if (resultsRaw.length === 0) return
-    if (hegemonyType === "drivers") {
-      hegemonyType = "constructors"
-      toggleHegemonyTypeBtn.innerText = "Equipes"
-      toggleHegemonyTypeBtn.classList.remove("primary-button")
-      toggleHegemonyTypeBtn.classList.add("secondary-button")
-    } else {
-      hegemonyType = "drivers"
-      toggleHegemonyTypeBtn.innerText = "Pilotos"
-      toggleHegemonyTypeBtn.classList.remove("secondary-button")
-      toggleHegemonyTypeBtn.classList.add("primary-button")
-    }
-    updateHegemonyChart()
-    updateLeaderboardTable()
-  })
+// Eventos da aba de Hegemonia (Aba 2)
+const typeToggle = document.getElementById("hegemonyTypeToggle");
+const metricToggle = document.getElementById("hegemonyMetricToggle");
 
-  toggleHegemonyMetricBtn.addEventListener("click", () => {
-    if (resultsRaw.length === 0) return
-    if (hegemonyMetric === "championships") {
-      hegemonyMetric = "wins"
-      toggleHegemonyMetricBtn.innerText = "Vitórias em GPs"
-    } else {
-      hegemonyMetric = "championships"
-      toggleHegemonyMetricBtn.innerText = "Campeonatos Mundiais"
-    }
-    updateHegemonyChart()
-    updateLeaderboardTable()
-  })
+const labelDrivers = document.getElementById("labelDrivers");
+const labelTeams = document.getElementById("labelTeams");
+const labelChamps = document.getElementById("labelChamps");
+const labelWins = document.getElementById("labelWins");
+
+// Chave Pilotos / Equipes
+typeToggle.addEventListener("change", (event) => {
+  if (event.target.checked) {
+    hegemonyType = "constructors";
+    labelDrivers.classList.remove("active");
+    labelTeams.classList.add("active");
+  } else {
+    hegemonyType = "drivers";
+    labelDrivers.classList.add("active");
+    labelTeams.classList.remove("active");
+  }
+  updateHegemonyChart();
+  updateLeaderboardTable();
+});
+
+// Chave Títulos / Vitórias
+metricToggle.addEventListener("change", (event) => {
+  if (event.target.checked) {
+    hegemonyMetric = "wins";
+    labelChamps.classList.remove("active");
+    labelWins.classList.add("active");
+  } else {
+    hegemonyMetric = "championships";
+    labelChamps.classList.add("active");
+    labelWins.classList.remove("active");
+  }
+  updateHegemonyChart();
+  updateLeaderboardTable();
+});
 
   // Eventos da aba de Pit Stops (Aba 4)
   pitYearSelect.addEventListener("change", event => {
