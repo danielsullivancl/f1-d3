@@ -1811,9 +1811,9 @@ function drawGridCorrelationChart() {
 
   const width = +svg.attr("width")
   const height = +svg.attr("height")
-  const margin = { top: 30, right: 40, bottom: 50, left: 60 }
-  const chartWidth = width - margin.left - margin.right
-  const chartHeight = height - margin.top - margin.bottom
+  const margin = { top: 40, right: 130, bottom: 60, left: 60 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
 
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`)
@@ -1920,6 +1920,69 @@ function drawGridCorrelationChart() {
   g.append("g")
     .attr("class", "axis")
     .call(d3.axisLeft(y).ticks(20).tickFormat(d => `${d}º`))
+
+  // =====================================================
+  // LEGENDA DA MATRIZ DE CORRELAÇÃO (LISTA VERTICAL)
+  // =====================================================
+  const legendGroup = g.append("g")
+    .attr("transform", `translate(${chartWidth + 30}, 90)`);
+
+  // Título da Legenda (ajustado para alinhar à esquerda)
+  legendGroup.append("text")
+    .attr("x", -15) 
+    .attr("y", -30)
+    .attr("text-anchor", "start")
+    .attr("fill", "#cbd5e1")
+    .attr("font-size", "12px")
+    .attr("font-weight", "bold")
+    .text("Ocorrências");
+
+  // Definir 5 níveis, garantindo que o nível mínimo (1) e o máximo estão presentes
+  const legendValues = [
+    1, // O menor nível absoluto
+    Math.floor(maxCount * 0.25), 
+    Math.floor(maxCount * 0.5), 
+    Math.floor(maxCount * 0.75), 
+    maxCount
+  ];
+  
+  // Garante valores únicos (caso o maxCount seja pequeno), remove zeros e ordena do maior para o menor
+  const uniqueLegendValues = [...new Set(legendValues)]
+    .filter(v => v > 0)
+    .sort((a, b) => b - a);
+
+  // Calcula o maior raio para alinhar os textos de forma reta numa coluna
+  const maxRadius = Math.max(...uniqueLegendValues.map(d => radius(d)));
+  
+  // ESPAÇAMENTO DINÂMICO: Diâmetro da maior bolha (raio * 2) + 2px de margem
+  const verticalSpacing = (maxRadius * 2) + 2;
+
+  // 1. Desenhar os Círculos (Um abaixo do outro)
+  legendGroup.selectAll(".legend-bubble")
+    .data(uniqueLegendValues)
+    .enter()
+    .append("circle")
+    .attr("class", "legend-bubble")
+    .attr("cx", 0)
+    .attr("cy", (d, i) => i * verticalSpacing) 
+    .attr("r", d => radius(d))
+    .attr("fill", d => color(d))
+    .attr("stroke", "white")
+    .attr("stroke-width", 0.5)
+    .attr("fill-opacity", 0.9);
+
+  // 2. Textos (Os valores numéricos ao lado)
+  legendGroup.selectAll(".legend-label")
+    .data(uniqueLegendValues)
+    .enter()
+    .append("text")
+    .attr("class", "legend-label")
+    .attr("x", maxRadius + 15) 
+    .attr("y", (d, i) => i * verticalSpacing) 
+    .attr("fill", "#cbd5e1")
+    .attr("font-size", "11px")
+    .attr("alignment-baseline", "middle")
+    .text(d => d);
 }
 
 
@@ -2262,14 +2325,14 @@ function configureEvents() {
     }
   }
 
-  // Eventos da aba de Hegemonia (Aba 2)
-  const typeToggle = document.getElementById("hegemonyTypeToggle");
-  const metricToggle = document.getElementById("hegemonyMetricToggle");
+// Eventos da aba de Hegemonia (Aba 2)
+const typeToggle = document.getElementById("hegemonyTypeToggle");
+const metricToggle = document.getElementById("hegemonyMetricToggle");
 
-  const labelDrivers = document.getElementById("labelDrivers");
-  const labelTeams = document.getElementById("labelTeams");
-  const labelChamps = document.getElementById("labelChamps");
-  const labelWins = document.getElementById("labelWins");
+const labelDrivers = document.getElementById("labelDrivers");
+const labelTeams = document.getElementById("labelTeams");
+const labelChamps = document.getElementById("labelChamps");
+const labelWins = document.getElementById("labelWins");
 
 // Chave Pilotos / Equipes
 typeToggle.addEventListener("change", (event) => {
@@ -2314,6 +2377,7 @@ metricToggle.addEventListener("change", (event) => {
     stopAnimation()
 
     if (!pitPlaying) {
+      // Ensure we start at the earliest year when play begins
       const years = getPitYears()
       if (years.length === 0) return
       if (!years.includes(selectedPitYear) || selectedPitYear > years[years.length - 1]) {
