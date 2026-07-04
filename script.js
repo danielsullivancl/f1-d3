@@ -726,6 +726,7 @@ function drawBaseMap(world) {
     .attr("d", path)
     .attr("class", "country")
     .attr("fill", d => continentColor(countryFeatureContinent(d)))
+    .attr("fill-opacity", 0.45)
     .attr("stroke", "#334155")
     .on("mouseover", (event, d) => {
       const countryName = d?.properties?.name || "País desconhecido"
