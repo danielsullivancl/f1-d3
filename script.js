@@ -7,11 +7,9 @@ const slider = document.getElementById("slider")
 const label = document.getElementById("label")
 const playBtn = document.getElementById("playBtn")
 const yearSelect = document.getElementById("yearSelect")
-const clearFilterBtn = document.getElementById("clearFilterBtn")
 const filterStatus = document.getElementById("filterStatus")
 
 // Novos controles
-const decadeSelect = document.getElementById("decadeSelect")
 const toggleHegemonyTypeBtn = document.getElementById("toggleHegemonyTypeBtn")
 const toggleHegemonyMetricBtn = document.getElementById("toggleHegemonyMetricBtn")
 const pitYearSelect = document.getElementById("pitYearSelect")
@@ -537,35 +535,6 @@ function populateYearSelect(data) {
     option.text = year
     yearSelect.appendChild(option)
   })
-}
-
-// Atualiza o select de anos com base na década filtrada
-function updateYearSelectForDecade(decade) {
-  if (dataGlobal.length === 0) return
-
-  const allYears = [...new Set(dataGlobal.map(d => d.year))].sort((a, b) => a - b)
-  let filteredYears = allYears
-
-  if (decade !== "all") {
-    const startYear = +decade
-    filteredYears = allYears.filter(y => y >= startYear && y < startYear + 10)
-  }
-
-  yearSelect.innerHTML = ""
-  filteredYears.forEach(year => {
-    const option = document.createElement("option")
-    option.value = year
-    option.text = year
-    yearSelect.appendChild(option)
-  })
-
-  // Se o ano atual estiver fora da lista de anos filtrados, selecionar o último
-  if (!filteredYears.includes(currentYear) && filteredYears.length > 0) {
-    const newYear = filteredYears[filteredYears.length - 1]
-    selectLastRaceOfYear(newYear)
-  } else {
-    yearSelect.value = currentYear
-  }
 }
 
 // Preenche o select de anos da aba de Pit Stops (disponível de 2011+)
@@ -2286,21 +2255,6 @@ function configureEvents() {
     if (dataGlobal.length === 0) return
     const year = +event.target.value
     selectLastRaceOfYear(year)
-  })
-
-  decadeSelect.addEventListener("change", event => {
-    if (dataGlobal.length === 0) return
-    const decade = event.target.value
-    updateYearSelectForDecade(decade)
-  })
-
-  clearFilterBtn.addEventListener("click", () => {
-    if (dataGlobal.length === 0) return
-    selectedContinent = null
-    decadeSelect.value = "all"
-    updateYearSelectForDecade("all")
-    stopAnimation()
-    refreshAllVisualizations()
   })
 
   playBtn.onclick = () => {

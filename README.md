@@ -82,6 +82,6 @@ Abaixo há um resumo das funções principais implementadas em `script.js`. Use 
 - `updateStackedAreaChart()`: monta um gráfico de área empilhada (proporções por continente ao longo dos anos) e permite filtragem por camada.
 - `updateCalendar(year, round)`: desenha o calendário anual destacando os dias de corrida até `round` do `year` e exibe detalhes no tooltip.
 
-- Handlers/UI: eventos do `slider`, `yearSelect`, `playBtn` e `clearFilterBtn` sincronizam o estado (índice/ano/filtro), controlam a reprodução e chamam `update()` ou funções de redraw apropriadas.
+- Handlers/UI: eventos do `slider`, `yearSelect` e `playBtn` sincronizam o estado (índice/ano/filtro), controlam a reprodução e chamam `update()` ou funções de redraw apropriadas.
 
 Se preferir, posso inserir esses resumos como comentários inline em `script.js` (cada função com uma breve descrição) ou expandir este bloco com exemplos de uso e trechos de código.
